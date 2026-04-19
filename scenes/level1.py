@@ -15,9 +15,9 @@ from systems.hud       import HUD
 from systems.camera    import Camera
 from systems.particles import ParticleSystem
 
-# Max reachable gap given JUMP_FORCE=-12, GRAVITY=0.3, MOVE_SPEED=4
-_MAX_GAP_X = 280
-_MAX_GAP_Y = 180
+# Max reachable gap given JUMP_FORCE=-14, GRAVITY=0.2, MOVE_SPEED=4
+_MAX_GAP_X = 320
+_MAX_GAP_Y = 200
 
 
 def _generate_level():
@@ -109,6 +109,7 @@ class Level1Scene:
         self.bg_color     = (10, 5, 25)
         self.font         = pygame.font.SysFont(None, 36)
         self.death_timer  = 0
+        self.next_scene   = None
 
     def _build_level(self):
         plats, gems, o2s, vents, vending, airlock_x = _generate_level()
