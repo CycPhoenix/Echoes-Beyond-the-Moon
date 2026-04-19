@@ -15,58 +15,95 @@ from systems.hud       import HUD
 from systems.camera    import Camera
 from systems.particles import ParticleSystem
 
-# Max reachable gap given JUMP_FORCE=-14, GRAVITY=0.2, MOVE_SPEED=4
-_MAX_GAP_X = 320
-_MAX_GAP_Y = 200
+# Gaps tuned for JUMP_FORCE=-10, GRAVITY=0.25, MOVE_SPEED=4
+# Max height ~200px, max horiz ~240px — keep gaps well under that
+_MAX_GAP_X = 160
+_MAX_GAP_Y = 80
+_GROUND_Y  = 650
 
 
 def _generate_level():
-    rng = random.Random()   # new seed every run
+    rng = random.Random()
     platforms, gems, o2_tanks, vents, vending = [], [], [], [], []
 
-    # Starting ground
-    platforms.append((0, 650, 700, 20, False))
-    gems.append((200, 620))
-    gems.append((500, 620))
-    o2_tanks.append((350, 620))
+    # Long starting ground
+    platforms.append((0, _GROUND_Y, 800, 20, False))
+    gems.append((200, _GROUND_Y - 30))
+    gems.append((500, _GROUND_Y - 30))
+    o2_tanks.append((350, _GROUND_Y - 30))
 
-    x, y = 700, 650
+    x, y = 800, _GROUND_Y
 
-    for i in range(20):
-        gap_x = rng.randint(60, _MAX_GAP_X)
+    for i in range(18):
+        gap_x = rng.randint(40, _MAX_GAP_X)
         gap_y = rng.randint(-_MAX_GAP_Y, _MAX_GAP_Y)
-        w     = rng.randint(140, 320)
-        new_y = max(200, min(650, y + gap_y))
-        is_qs = rng.random() < 0.12
+        w     = rng.randint(180, 340)
+        new_y = max(300, min(_GROUND_Y, y + gap_y))
+        is_qs = rng.random() < 0.10
 
         px = x + gap_x
         platforms.append((px, new_y, w, 20, is_qs))
 
-        # Gems on top of platform
-        for gx in range(px + 20, px + w - 20, 60):
-            if rng.random() < 0.5:
-                gems.append((gx, new_y - 24))
+        # Gems along platform
+        for gx in range(px + 20, px + w - 20, 55):
+            if rng.random() < 0.45:
+                gems.append((gx, new_y - 28))
 
         # O2 tank every ~4 platforms
         if i % 4 == 2:
-            o2_tanks.append((px + w // 2 - 10, new_y - 24))
+            o2_tanks.append((px + w // 2 - 10, new_y - 28))
 
         # Vent every ~5 platforms
         if i % 5 == 3:
-            vents.append((px + 10, new_y - 28))
+            vents.append((px + 8, new_y - 30))
 
-        # Vending machine every ~7 platforms
-        if i % 7 == 5:
+        # Vending machine every ~8 platforms
+        if i % 8 == 6:
             vending.append((px + w // 2 - 16, new_y - 52))
 
         x = px + w
         y = new_y
 
-    # Airlock platform at end
-    airlock_x = x + 120
-    platforms.append((airlock_x, y, 500, 20, False))
+    # Final flat ground leading into the base
+    base_ground_x = x + 60
+    base_ground_y = _GROUND_Y
+    platforms.append((base_ground_x, base_ground_y, 900, 20, False))
 
-    return platforms, gems, o2_tanks, vents, vending, airlock_x + 480
+    airlock_trigger = base_ground_x + 750
+
+    return platforms, gems, o2_tanks, vents, vending, base_ground_x, base_ground_y, airlock_trigger
+
+
+class ScienceBase:
+    """Drawn at the end of level 1 — building + airlock door."""
+    def __init__(self, x: int, ground_y: int):
+        self.x        = x
+        self.ground_y = ground_y
+        self.font     = pygame.font.SysFont(None, 28)
+
+    def draw(self, screen: pygame.Surface, camera):
+        ox = -camera.offset_x
+        gx = self.x + ox
+        gy = self.ground_y
+
+        # Main dome body
+        pygame.draw.rect(screen, (60, 80, 110),  (gx,        gy - 160, 400, 160))
+        # Dome arc on top
+        pygame.draw.ellipse(screen, (70, 100, 140), (gx + 50,  gy - 220, 300, 120))
+        # Windows
+        for wx in [gx + 40, gx + 120, gx + 200, gx + 290]:
+            pygame.draw.rect(screen, (140, 200, 240), (wx, gy - 130, 50, 40))
+            pygame.draw.rect(screen, (100, 160, 200), (wx, gy - 130, 50, 40), 2)
+        # Airlock door (entrance)
+        pygame.draw.rect(screen, (30, 40, 60),   (gx + 160, gy - 80,  80, 80))
+        pygame.draw.rect(screen, (0,  200, 180), (gx + 160, gy - 80,  80, 80), 3)
+        # Sign
+        label = self.font.render("SCIENCE BASE", True, (0, 220, 200))
+        screen.blit(label, (gx + 130, gy - 185))
+        # Warning lights
+        light_col = (255, 80, 0) if (pygame.time.get_ticks() // 500) % 2 == 0 else (100, 30, 0)
+        pygame.draw.circle(screen, light_col, (gx + 10,  gy - 170), 8)
+        pygame.draw.circle(screen, light_col, (gx + 390, gy - 170), 8)
 
 
 class VendingMachine(pygame.sprite.Sprite):
@@ -112,8 +149,9 @@ class Level1Scene:
         self.next_scene   = None
 
     def _build_level(self):
-        plats, gems, o2s, vents, vending, airlock_x = _generate_level()
+        plats, gems, o2s, vents, vending, base_x, base_y, airlock_x = _generate_level()
         self.airlock_x = airlock_x
+        self.base      = ScienceBase(base_x + 200, base_y)
         for x, y, w, h, qs in plats:
             self.platforms.add(Platform(x, y, w, h, is_quicksand=qs))
         for x, y in gems:
@@ -168,6 +206,7 @@ class Level1Scene:
     def draw(self):
         self.screen.fill(self.bg_color)
         self._draw_stars()
+        self.base.draw(self.screen, self.camera)
         for sprite in list(self.platforms) + list(self.vents) + list(self.vending) + list(self.pickups) + list(self.meteors):
             self.screen.blit(sprite.image, self.camera.apply(sprite))
         self.screen.blit(self.player.image, self.camera.apply(self.player))
