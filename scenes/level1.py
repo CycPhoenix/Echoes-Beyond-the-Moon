@@ -15,40 +15,58 @@ from systems.hud       import HUD
 from systems.camera    import Camera
 from systems.particles import ParticleSystem
 
+# Max reachable gap given JUMP_FORCE=-12, GRAVITY=0.3, MOVE_SPEED=4
+_MAX_GAP_X = 280
+_MAX_GAP_Y = 180
 
-# Tile-based level layout: (x, y, w, h, quicksand?)
-_PLATFORMS = [
-    (0,    650, 800,  20, False),
-    (850,  600, 300,  20, False),
-    (1200, 550, 200,  20, False),
-    (1450, 500, 400,  20, False),
-    (1900, 480, 150,  20, True),   # quicksand
-    (2100, 440, 300,  20, False),
-    (2450, 400, 200,  20, False),
-    (2700, 360, 400,  20, False),
-    (3150, 340, 300,  20, False),
-    (3500, 300, 500,  20, False),
-    (4050, 280, 200,  20, True),   # quicksand
-    (4300, 250, 600,  20, False),
-    (4950, 220, 300,  20, False),
-    (5300, 200, 800,  20, False),  # airlock zone starts here
-]
 
-_GEMS = [
-    (300, 620), (600, 620), (1000, 570), (1300, 520),
-    (1600, 470), (2200, 410), (2900, 330), (3200, 310),
-    (3700, 270), (4500, 220),
-]
+def _generate_level():
+    rng = random.Random()   # new seed every run
+    platforms, gems, o2_tanks, vents, vending = [], [], [], [], []
 
-_O2_TANKS = [
-    (500, 620), (1500, 470), (2600, 330), (4000, 250),
-]
+    # Starting ground
+    platforms.append((0, 650, 700, 20, False))
+    gems.append((200, 620))
+    gems.append((500, 620))
+    o2_tanks.append((350, 620))
 
-_VENTS = [
-    (900, 580), (2400, 370), (4800, 190),
-]
+    x, y = 700, 650
 
-AIRLOCK_X = 5800
+    for i in range(20):
+        gap_x = rng.randint(60, _MAX_GAP_X)
+        gap_y = rng.randint(-_MAX_GAP_Y, _MAX_GAP_Y)
+        w     = rng.randint(140, 320)
+        new_y = max(200, min(650, y + gap_y))
+        is_qs = rng.random() < 0.12
+
+        px = x + gap_x
+        platforms.append((px, new_y, w, 20, is_qs))
+
+        # Gems on top of platform
+        for gx in range(px + 20, px + w - 20, 60):
+            if rng.random() < 0.5:
+                gems.append((gx, new_y - 24))
+
+        # O2 tank every ~4 platforms
+        if i % 4 == 2:
+            o2_tanks.append((px + w // 2 - 10, new_y - 24))
+
+        # Vent every ~5 platforms
+        if i % 5 == 3:
+            vents.append((px + 10, new_y - 28))
+
+        # Vending machine every ~7 platforms
+        if i % 7 == 5:
+            vending.append((px + w // 2 - 16, new_y - 52))
+
+        x = px + w
+        y = new_y
+
+    # Airlock platform at end
+    airlock_x = x + 120
+    platforms.append((airlock_x, y, 500, 20, False))
+
+    return platforms, gems, o2_tanks, vents, vending, airlock_x + 480
 
 
 class VendingMachine(pygame.sprite.Sprite):
@@ -87,23 +105,24 @@ class Level1Scene:
 
         self._build_level()
 
-        self.meteor_timer  = 0
-        self.bg_color      = (10, 5, 25)
-        self.font          = pygame.font.SysFont(None, 36)
-        self.death_timer   = 0
-        self.next_scene    = None
+        self.meteor_timer = 0
+        self.bg_color     = (10, 5, 25)
+        self.font         = pygame.font.SysFont(None, 36)
+        self.death_timer  = 0
 
     def _build_level(self):
-        for x, y, w, h, qs in _PLATFORMS:
+        plats, gems, o2s, vents, vending, airlock_x = _generate_level()
+        self.airlock_x = airlock_x
+        for x, y, w, h, qs in plats:
             self.platforms.add(Platform(x, y, w, h, is_quicksand=qs))
-        for x, y in _GEMS:
+        for x, y in gems:
             self.pickups.add(Pickup(x, y, "gem"))
-        for x, y in _O2_TANKS:
+        for x, y in o2s:
             self.pickups.add(Pickup(x, y, "o2"))
-        for x, y in _VENTS:
+        for x, y in vents:
             self.vents.add(OxygenVent(x, y))
-        self.vending.add(VendingMachine(1850, 432))
-        self.vending.add(VendingMachine(4200, 202))
+        for x, y in vending:
+            self.vending.add(VendingMachine(x, y))
 
     def update(self, dt) -> str | None:
         if self.next_scene:
@@ -120,6 +139,7 @@ class Level1Scene:
             self.death_timer += 1
             if self.death_timer > 120:
                 self.state.lives = self.player.lives
+                self.state.gems  = self.player.gems
                 return SCENE_GAMEOVER
             return None
 
@@ -205,4 +225,4 @@ class Level1Scene:
                     self.o2.refill(float(OXYGEN_MAX))
 
     def _at_airlock(self) -> bool:
-        return self.player.pos.x >= AIRLOCK_X
+        return self.player.pos.x >= self.airlock_x
