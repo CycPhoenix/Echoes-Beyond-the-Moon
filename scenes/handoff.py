@@ -1,3 +1,4 @@
+from __future__ import annotations
 import pygame
 from utils.constants import SCREEN_WIDTH, SCREEN_HEIGHT, BLACK, SCENE_LEVEL2
 from utils.game_state import GameState
