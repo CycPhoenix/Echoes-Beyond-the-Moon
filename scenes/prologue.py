@@ -9,7 +9,7 @@ class PrologueScene:
         self.screen = screen
         self.state = state
 
-        # load background images (lab3 style)
+        # load background images
         background_img = pygame.image.load("assets/intro/begining/afterparty.png")
         self.background = pygame.transform.scale(background_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
@@ -31,6 +31,15 @@ class PrologueScene:
         piano_img = pygame.image.load("assets/intro/begining/piano_overview.png")
         self.background7 = pygame.transform.scale(piano_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
+        piano1_img = pygame.image.load("assets/intro/begining/piano (1).png")
+        self.background8 = pygame.transform.scale(piano1_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
+        roomdoor_img = pygame.image.load("assets/intro/begining/room_door.png")
+        self.background9 = pygame.transform.scale(roomdoor_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
+        roomdoor_luna_img = pygame.image.load("assets/intro/begining/room_door_luna.png")
+        self.background10 = pygame.transform.scale(roomdoor_luna_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
         # load each dialogue box image
         img1  = pygame.image.load("assets/character/char_dialogue/character_dialogue_happy_claphand.png")
         img2  = pygame.image.load("assets/character/char_dialogue/character_dialogue_smile.png")
@@ -40,7 +49,7 @@ class PrologueScene:
         img6  = pygame.image.load("assets/character/char_dialogue/character_dialogue_shock.png")
         img7  = pygame.image.load("assets/character/char_dialogue/character_dialogue_excited.png")
         img8  = pygame.image.load("assets/character/char_dialogue/character_dialogue_sadface.png")
-        img9  = pygame.image.load("assets/intro/begining/character_dialogue_plain_smile.png")
+        img9  = pygame.image.load("assets/character/char_dialogue/character_dialogue_plain_smile.png")
         img10 = pygame.image.load("assets/character/char_dialogue/character_dialogue_cry.png")
         img11 = pygame.image.load("assets/character/char_dialogue/char_dialogue_ lightsmile.png")
         img12 = pygame.image.load("assets/character/char_dialogue/char_dialogue_ terrified.png")
@@ -57,7 +66,7 @@ class PrologueScene:
         img23 = pygame.image.load("assets/character/char_dialogue/char_dialogue_ spiraleyes.png")
         img24 = pygame.image.load("assets/character/char_dialogue/char_dialogue_pouting.png")
 
-        # --- image 1: happy_claphand --- adjust size and position
+        # --- image 1: happy_claphand (size and position)
         img1_W = 800
         img1_H = 330
         img1_X = 200
@@ -258,11 +267,11 @@ class PrologueScene:
         self.textX = 500
         self.textY = 635
 
-        # narrative text position (lines 6-8, fog background) — adjust here
+        # narrative text position 
         self.narrativeTextX = 640
         self.narrativeTextY = 360
 
-        # dialogue lines — max 3 per scene
+        # dialogue lines 
         self.dialogue = [
             # --- Scene 1: afterparty (lines 0-2) ---
             "Best party ever, Isabelle!",
@@ -292,9 +301,14 @@ class PrologueScene:
             "This piano looks like \nit's been well taken care of.",
             "Oh, a note: 'Play me.' \n Hmm, should I?",
             "Somehow... \nmy fingers already know what to do.",
+            # --- Scene 8: piano (1) (line 21) ---
+            "...",
+            # --- Scene 9: room door (line 22) ---
+            "...",
+            # --- Scene 10: room door luna (line 23) ---
+            "...",
         ]
-
-        # same variable names as lab3
+         
         self.currLine = 0
         self.diaTime = 0
         self.diaInterval = 4000
@@ -311,7 +325,7 @@ class PrologueScene:
                     self.currLine += 1
                     self.diaTime = 0
 
-        # auto advance dialogue (same as lab3)
+        # auto advance dialogue 
         self.diaTime += dt
         if self.diaTime >= self.diaInterval:
             self.currLine += 1
@@ -337,11 +351,17 @@ class PrologueScene:
             self.screen.blit(self.background5, (0, 0))
         elif self.currLine < 18:
             self.screen.blit(self.background6, (0, 0))
-        else:
+        elif self.currLine < 21:
             self.screen.blit(self.background7, (0, 0))
+        elif self.currLine == 21:
+            self.screen.blit(self.background8, (0, 0))
+        elif self.currLine == 22:
+            self.screen.blit(self.background9, (0, 0))
+        else:
+            self.screen.blit(self.background10, (0, 0))
 
-        # fog narrative (lines 6-8): centered text over image, no dialogue box
-        # draw the correct dialogue box image based on current line (student if/elif style)
+        
+        # draw the correct dialogue box image based on current line
         if self.currLine == 0:
             self.screen.blit(self.img1, self.img1_pos)
         elif self.currLine == 1:
@@ -384,6 +404,12 @@ class PrologueScene:
             self.screen.blit(self.img16, self.img16_pos)
         elif self.currLine == 20:
             self.screen.blit(self.img18, self.img18_pos)
+        elif self.currLine == 21:
+            self.screen.blit(self.img3, self.img3_pos)
+        elif self.currLine == 22:
+            self.screen.blit(self.img3, self.img3_pos)
+        elif self.currLine == 23:
+            self.screen.blit(self.img3, self.img3_pos)
 
         # draw the dialogue text inside the box
         if self.currLine < len(self.dialogue):
