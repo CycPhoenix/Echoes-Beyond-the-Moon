@@ -271,6 +271,13 @@ class PrologueScene:
         self.narrativeTextX = 640
         self.narrativeTextY = 360
 
+        # skip button (bottom right) — shown from start until Luna enters the house
+        skip_img = pygame.image.load("assets/menu/extra_14.png")
+        skip_W = 180
+        skip_H = 84
+        self.skipBtn = pygame.transform.scale(skip_img, (skip_W, skip_H))
+        self.skipBtn_pos = (SCREEN_WIDTH - skip_W - 15, SCREEN_HEIGHT - skip_H - 15)
+
         # dialogue lines 
         self.dialogue = [
             # --- Scene 1: afterparty (lines 0-2) ---
@@ -324,6 +331,8 @@ class PrologueScene:
                 if event.key == pygame.K_RETURN:
                     self.currLine += 1
                     self.diaTime = 0
+                if event.key == pygame.K_x:
+                    return SCENE_LEVEL1
 
         # auto advance dialogue 
         self.diaTime += dt
@@ -423,6 +432,9 @@ class PrologueScene:
             else:
                 textSurface = self.font.render(line, True, (80, 50, 20))
                 self.screen.blit(textSurface, textSurface.get_rect(center=(self.textX, self.textY)))
+
+        # skip button — visible throughout entire prologue
+        self.screen.blit(self.skipBtn, self.skipBtn_pos)
 
         # small hint at the bottom
         hint = self.hintFont.render("Press ENTER to continue", True, (200, 200, 200))

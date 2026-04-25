@@ -17,7 +17,7 @@ class MainMenuScene:
         self.show_hint = True
 
         # ── Load + crop border + scale to screen (lab3 technique) ──
-        raw = pygame.image.load("assets/intro/begining/mainmenu_start.png")
+        raw = pygame.image.load("assets/intro/begining/mainmenu_new.png")
         w, h = raw.get_width(), raw.get_height()
 
         # subsurface trims the transparent checkerboard border (lab5 technique)
