@@ -1,16 +1,19 @@
+import os
 import pygame
-from utils.constants import CYAN, OXYGEN_TANK_REFILL
+from utils.constants import OXYGEN_TANK_REFILL
+
+_BASE   = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "level1")
+_SIZE   = (32, 32)
 
 
 class Pickup(pygame.sprite.Sprite):
     def __init__(self, x: int, y: int, kind: str):
         super().__init__()
         self.kind = kind  # "gem" or "o2"
-        size = 20
-        self.image = pygame.Surface((size, size), pygame.SRCALPHA)
-        color = CYAN if kind == "o2" else (255, 220, 50)
-        pygame.draw.circle(self.image, color, (size // 2, size // 2), size // 2)
-        self.rect = self.image.get_rect(topleft=(x, y))
+        fname = "O^2.png" if kind == "o2" else "Crystal.png"
+        src   = pygame.image.load(os.path.join(_BASE, fname)).convert_alpha()
+        self.image = pygame.transform.scale(src, _SIZE)
+        self.rect  = self.image.get_rect(topleft=(x, y))
 
     @property
     def value(self):
