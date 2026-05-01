@@ -1,19 +1,49 @@
+import os
 import pygame
 from utils.constants import (GRAVITY, JUMP_FORCE, MOVE_SPEED, MAX_FALL_SPEED,
                               MAX_LIVES, SCREEN_HEIGHT)
 
+_BASE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "character", "char_split")
+
+
+def _load_frames(folder: str, size: tuple[int, int]) -> list[pygame.Surface]:
+    path = os.path.join(_BASE, folder)
+    files = sorted(f for f in os.listdir(path) if f.endswith(".png"))
+    return [pygame.transform.scale(
+        pygame.image.load(os.path.join(path, f)).convert_alpha(), size
+    ) for f in files]
+
+
+def _load_single(rel: str, size: tuple[int, int]) -> pygame.Surface:
+    return pygame.transform.scale(
+        pygame.image.load(os.path.join(_BASE, rel)).convert_alpha(), size
+    )
+
+
+_SIZE = (48, 96)   # ~0.5:1 ratio — matches natural proportions of sprites
+
 
 class Player(pygame.sprite.Sprite):
-    ROW_IDLE  = 0
-    ROW_WALK  = 1
-    ROW_JUMP  = 2
-    ROW_HURT  = 3
-    ROW_PANIC = 4
-
     def __init__(self, x: int, y: int):
         super().__init__()
-        self.image = pygame.Surface((32, 48), pygame.SRCALPHA)
-        pygame.draw.rect(self.image, (180, 140, 200), (0, 0, 32, 48))
+
+        # Load all animation frames
+        self._anims = {
+            "IDLE_R":  [_load_single("char_idle_new.png", _SIZE)],
+            "IDLE_L":  [pygame.transform.flip(_load_single("char_idle_new.png", _SIZE), True, False)],
+            "WALK_R":  _load_frames("character_walk_right_new", _SIZE),
+            "WALK_L":  _load_frames("character_walk_left_new",  _SIZE),
+            "JUMP_R":  _load_frames("character_small_jump_right_new", _SIZE),
+            "JUMP_L":  _load_frames("character_small_jump_left_new",  _SIZE),
+            "RUN_R":   _load_frames("run_right", _SIZE),
+            "RUN_L":   _load_frames("run_left",  _SIZE),
+        }
+        self._anim_key  = "IDLE_R"
+        self._frame_idx = 0
+        self._frame_timer = 0
+        self._frame_speed = 6   # frames between animation advances
+
+        self.image = self._anims["IDLE_R"][0]
         self.rect  = self.image.get_rect(topleft=(x, y))
 
         self.vel          = pygame.math.Vector2(0, 0)
@@ -30,6 +60,7 @@ class Player(pygame.sprite.Sprite):
         self._apply_physics()
         self._collide(platforms, o2)
         self._update_state(o2)
+        self._animate()
         if self.invincible > 0:
             self.invincible -= 1
 
@@ -71,7 +102,6 @@ class Player(pygame.sprite.Sprite):
                     self.on_ground = True
                     if hasattr(plat, "is_quicksand") and plat.is_quicksand:
                         o2.level = max(0.0, o2.level - 0.05)
-
         if self.pos.y > SCREEN_HEIGHT + 100:
             self.die()
 
@@ -81,12 +111,39 @@ class Player(pygame.sprite.Sprite):
         if o2.is_empty:
             self.die()
 
+    def _animate(self):
+        if self.state == "DEATH":
+            return
+
+        # Pick anim key
+        if self.state in ("IDLE", "PANIC"):
+            key = "IDLE_R" if self.facing_right else "IDLE_L"
+        elif self.state == "WALK":
+            key = "WALK_R" if self.facing_right else "WALK_L"
+        elif self.state == "JUMP":
+            key = "JUMP_R" if self.facing_right else "JUMP_L"
+        else:
+            key = "IDLE_R" if self.facing_right else "IDLE_L"
+
+        if key != self._anim_key:
+            self._anim_key  = key
+            self._frame_idx = 0
+            self._frame_timer = 0
+
+        frames = self._anims[self._anim_key]
+        self._frame_timer += 1
+        if self._frame_timer >= self._frame_speed:
+            self._frame_timer = 0
+            self._frame_idx = (self._frame_idx + 1) % len(frames)
+
+        self.image = frames[self._frame_idx]
+
     def take_damage(self):
         if self.invincible > 0:
             return
-        self.lives  -= 1
+        self.lives -= 1
         self.invincible = 120
-        self.state  = "HURT"
+        self.state = "HURT"
         if self.lives <= 0:
             self.die()
 
