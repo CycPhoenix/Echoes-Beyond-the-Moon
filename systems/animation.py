@@ -1,4 +1,39 @@
 import pygame
+from typing import List
+
+
+class FrameAnimation:
+    """Animation from pre-loaded Surface list (folder-based frames)."""
+    def __init__(self, frames: List[pygame.Surface], fps: int = 8,
+                 loop: bool = True):
+        self.frames = frames
+        self.fps    = fps
+        self.loop   = loop
+        self.timer  = 0
+        self.index  = 0
+        self.done   = False
+
+    def update(self):
+        if self.done:
+            return
+        self.timer += 1
+        if self.timer >= 60 // max(1, self.fps):
+            self.timer = 0
+            self.index += 1
+            if self.index >= len(self.frames):
+                if self.loop:
+                    self.index = 0
+                else:
+                    self.index = len(self.frames) - 1
+                    self.done = True
+
+    def get_frame(self) -> pygame.Surface:
+        return self.frames[self.index]
+
+    def reset(self):
+        self.index = 0
+        self.timer = 0
+        self.done  = False
 
 
 class AnimationController:
