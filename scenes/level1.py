@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 import random
 import pygame
 
@@ -11,10 +12,11 @@ from entities.player   import Player
 from entities.meteor   import EyeMeteor
 from entities.platform import Platform
 from entities.pickup   import Pickup
-from systems.oxygen    import OxygenSystem
-from systems.hud       import HUD
-from systems.camera    import Camera
-from systems.particles import ParticleSystem
+from systems.oxygen     import OxygenSystem
+from systems.hud        import HUD
+from systems.camera     import Camera
+from systems.particles  import ParticleSystem
+from systems.animation  import FrameAnimation
 
 # Gaps tuned for JUMP_FORCE=-10, GRAVITY=0.25, MOVE_SPEED=4
 # Max height ~200px, max horiz ~240px — keep gaps well under that
@@ -75,12 +77,30 @@ def _generate_level():
     return platforms, gems, o2_tanks, vents, vending, base_ground_x, base_ground_y, airlock_trigger
 
 
+_DOOR_SIZE = (80, 80)
+
+
 class ScienceBase:
-    """Drawn at the end of level 1 — building + airlock door."""
+    """Drawn at the end of level 1 — building + animated airlock door."""
     def __init__(self, x: int, ground_y: int):
         self.x        = x
         self.ground_y = ground_y
         self.font     = pygame.font.SysFont(None, 28)
+
+        # Load both door frames
+        door_frames = []
+        for fname in ("base_door (1).png", "base_door (2).png"):
+            src = pygame.image.load(os.path.join(_ASSETS, "level1", fname)).convert_alpha()
+            door_frames.append(pygame.transform.scale(src, _DOOR_SIZE))
+        self._door_anim = FrameAnimation(door_frames, fps=2, loop=True)
+
+        # World-space collision rect for the airlock door
+        self.door_rect = pygame.Rect(
+            x + 160, ground_y - _DOOR_SIZE[1], _DOOR_SIZE[0], _DOOR_SIZE[1]
+        )
+
+    def update(self):
+        self._door_anim.update()
 
     def draw(self, screen: pygame.Surface, camera):
         ox = -camera.offset_x
@@ -95,9 +115,9 @@ class ScienceBase:
         for wx in [gx + 40, gx + 120, gx + 200, gx + 290]:
             pygame.draw.rect(screen, (140, 200, 240), (wx, gy - 130, 50, 40))
             pygame.draw.rect(screen, (100, 160, 200), (wx, gy - 130, 50, 40), 2)
-        # Airlock door (entrance)
-        pygame.draw.rect(screen, (30, 40, 60),   (gx + 160, gy - 80,  80, 80))
-        pygame.draw.rect(screen, (0,  200, 180), (gx + 160, gy - 80,  80, 80), 3)
+        # Animated airlock door
+        door_frame = self._door_anim.get_frame()
+        screen.blit(door_frame, (gx + 160, gy - _DOOR_SIZE[1]))
         # Sign
         label = self.font.render("SCIENCE BASE", True, (0, 220, 200))
         screen.blit(label, (gx + 130, gy - 185))
@@ -124,14 +144,28 @@ class OxygenVent(pygame.sprite.Sprite):
         self.rect  = self.image.get_rect(topleft=(x, y))
 
 
+_ASSETS = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
+
+
+def _load_bg(name: str) -> pygame.Surface:
+    return pygame.transform.scale(
+        pygame.image.load(os.path.join(_ASSETS, name)).convert(),
+        (SCREEN_WIDTH, SCREEN_HEIGHT)
+    )
+
+
 class Level1Scene:
     def __init__(self, screen: pygame.Surface, state: GameState):
         self.screen = screen
         self.state  = state
 
+        # Parallax backgrounds
+        self.bg_far  = _load_bg("background/background_1.png")
+        self.bg_near = _load_bg("level1/moonsurface_base.png")
+
         self.camera    = Camera()
         self.o2        = OxygenSystem()
-        self.player    = Player(100, 580)
+        self.player    = Player(100, 554)   # 554 = _GROUND_Y - 96 (player height)
         self.particles = ParticleSystem()
         self.hud       = HUD(self.o2, self.player)
 
@@ -144,7 +178,6 @@ class Level1Scene:
         self._build_level()
 
         self.meteor_timer = 0
-        self.bg_color     = (10, 5, 25)
         self.font         = pygame.font.SysFont(None, 36)
         self.death_timer  = 0
         self.next_scene   = None
@@ -196,6 +229,7 @@ class Level1Scene:
         self.camera.update(self.player)
         self.hud.update()
         self.particles.update()
+        self.base.update()
 
         if self._at_airlock():
             self.state.lives = self.player.lives
@@ -205,14 +239,19 @@ class Level1Scene:
         return None
 
     def draw(self):
-        self.screen.fill(self.bg_color)
-        self._draw_stars()
+        self._draw_parallax()
         self.base.draw(self.screen, self.camera)
         for sprite in list(self.platforms) + list(self.vents) + list(self.vending) + list(self.pickups) + list(self.meteors):
             self.screen.blit(sprite.image, self.camera.apply(sprite))
         self.screen.blit(self.player.image, self.camera.apply(self.player))
         self.particles.draw(self.screen, self.camera)
         self.hud.draw(self.screen)
+
+        # "Enter base" prompt when near door
+        if self.player.rect.inflate(60, 0).colliderect(self.base.door_rect):
+            hint = self.font.render("Touch door to enter base", True, (0, 240, 210))
+            hint_rect = hint.get_rect(center=(SCREEN_WIDTH // 2, 80))
+            self.screen.blit(hint, hint_rect)
 
         if self.player.state == "DEATH":
             overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
@@ -222,13 +261,15 @@ class Level1Scene:
                 txt = self.font.render("LOST IN THE VOID", True, (200, 80, 80))
                 self.screen.blit(txt, txt.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)))
 
-    def _draw_stars(self):
-        # Simple static stars — seed for consistency
-        rng = random.Random(42)
-        for _ in range(120):
-            x = rng.randint(0, SCREEN_WIDTH)
-            y = rng.randint(0, SCREEN_HEIGHT // 2)
-            pygame.draw.circle(self.screen, (255, 255, 255), (x, y), 1)
+    def _draw_parallax(self):
+        # Far layer — moves at 10% camera speed
+        far_x = -(self.camera.offset_x * 0.1) % SCREEN_WIDTH
+        self.screen.blit(self.bg_far,  (far_x,             0))
+        self.screen.blit(self.bg_far,  (far_x - SCREEN_WIDTH, 0))
+        # Near layer — moves at 40% camera speed
+        near_x = -(self.camera.offset_x * 0.4) % SCREEN_WIDTH
+        self.screen.blit(self.bg_near, (near_x,             0))
+        self.screen.blit(self.bg_near, (near_x - SCREEN_WIDTH, 0))
 
     def _check_vents(self):
         for vent in self.vents:
@@ -266,4 +307,4 @@ class Level1Scene:
                     self.o2.refill(float(OXYGEN_MAX))
 
     def _at_airlock(self) -> bool:
-        return self.player.pos.x >= self.airlock_x
+        return self.player.rect.colliderect(self.base.door_rect)
