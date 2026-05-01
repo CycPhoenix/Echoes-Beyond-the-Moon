@@ -1,21 +1,23 @@
+import os
 import pygame
-from utils.constants import (METEOR_SPEED, METEOR_TRACK_FRAMES,
-                              SCREEN_HEIGHT, ORANGE)
+from utils.constants import (METEOR_SPEED, METEOR_TRACK_FRAMES, SCREEN_HEIGHT, ORANGE)
+
+_BASE     = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "level1")
+_MTR_SIZE = (48, 48)
 
 
 class EyeMeteor(pygame.sprite.Sprite):
     def __init__(self, x: int, target):
         super().__init__()
-        self.image = pygame.Surface((24, 24), pygame.SRCALPHA)
-        pygame.draw.circle(self.image, ORANGE, (12, 12), 12)
-        pygame.draw.circle(self.image, (255, 255, 80), (12, 12), 5)
-        self.rect   = self.image.get_rect(topleft=(x, -40))
+        src = pygame.image.load(os.path.join(_BASE, "Meteors.png")).convert_alpha()
+        self.image  = pygame.transform.scale(src, _MTR_SIZE)
+        self.rect   = self.image.get_rect(topleft=(x, -60))
 
-        self.pos    = pygame.math.Vector2(x, -40)
-        self.vel    = pygame.math.Vector2(0, 1.5)
-        self.target = target
-        self.phase  = "DRIFT"
-        self.timer  = 0
+        self.pos      = pygame.math.Vector2(x, -60)
+        self.vel      = pygame.math.Vector2(0, 1.5)
+        self.target   = target
+        self.phase    = "DRIFT"
+        self.timer    = 0
         self.locked_x = 0.0
 
     def update(self, platforms):
