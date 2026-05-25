@@ -17,13 +17,26 @@ def _scale_bg(rel: str) -> pygame.Surface:
     return pygame.transform.scale(_load(rel), (SCREEN_WIDTH, SCREEN_HEIGHT))
 
 
-def _scale_dlg(rel: str, target_w: int = 820) -> tuple[pygame.Surface, tuple[int, int]]:
-    """Scale dialogue image to target_w, maintain aspect ratio, bottom-anchor at y=718."""
+def _scale_bg_blur(rel: str, radius: int = 8) -> pygame.Surface:
+    """Scale background to screen size, apply Gaussian blur (ref: lab9_2 gaussionBlur)."""
+    from PIL import Image, ImageFilter
+    path = os.path.join(_BASE, rel)
+    pil_img = Image.open(path).convert("RGBA")
+    pil_img = pil_img.resize((SCREEN_WIDTH, SCREEN_HEIGHT), Image.LANCZOS)
+    blurred = pil_img.filter(ImageFilter.GaussianBlur(radius=radius))
+    return pygame.image.frombuffer(blurred.tobytes(), blurred.size, "RGBA")
+
+
+def _scale_dlg(rel: str, target_w: int = 820, max_h: int = 320) -> tuple[pygame.Surface, tuple[int, int]]:
+    """Scale dialogue image to target_w, cap height at max_h, bottom-anchor at screen bottom."""
     src = _load(rel)
     h = int(target_w * src.get_height() / src.get_width())
+    if h > max_h:
+        h = max_h
+        target_w = int(h * src.get_width() / src.get_height())
     surf = pygame.transform.scale(src, (target_w, h))
     x = (SCREEN_WIDTH - target_w) // 2
-    y = 718 - h
+    y = SCREEN_HEIGHT - h
     return surf, (x, y)
 
 
@@ -69,40 +82,62 @@ _PIANO_KEYS = [
     (pygame.K_h, 'H', 'A', 440.00),
     (pygame.K_j, 'J', 'B', 493.88),
 ]
-_KEY_W        = 82
-_KEY_H        = 130
-_KEYS_X0      = (SCREEN_WIDTH - len(_PIANO_KEYS) * _KEY_W) // 2
-_KEYS_Y       = SCREEN_HEIGHT - _KEY_H - 28
-_MIN_NOTES    = 4   # notes to play before "continue" appears
+_KEY_W   = 82
+_KEY_H   = 130
+_KEYS_X0 = (SCREEN_WIDTH - len(_PIANO_KEYS) * _KEY_W) // 2
+_KEYS_Y  = SCREEN_HEIGHT - _KEY_H - 28
+
+# Twinkle Twinkle Little Star — first two phrases (C C G G A A G  F F E E D D C)
+_TWINKLE_SEQ = [
+    pygame.K_a, pygame.K_a,   # C C  — Twinkle twinkle
+    pygame.K_g, pygame.K_g,   # G G  — little star
+    pygame.K_h, pygame.K_h,   # A A  — How I
+    pygame.K_g,               # G    — wonder
+    pygame.K_f, pygame.K_f,   # F F  — what you
+    pygame.K_d, pygame.K_d,   # E E  — are up
+    pygame.K_s, pygame.K_s,   # D D  — above the
+    pygame.K_a,               # C    — world
+]
+
+_WRONG_NOTE_TEXTS = [
+    "Oops, wrong note~\nIt's okay, let me try again!",
+    "Aw, not quite!\nFrom the top, I've got this!",
+    "Hmm, that didn't sound right...\nLet me start over, no worries!",
+]
+
+_PIANO_VICTORY_TEXT = "Twinkle twinkle, I'm a star!\nI played it all — and here we are!"
+
+_PIANO_ERR_DLG_IDX     = 7    # new_char_dialogue_sad_depress.png
+_PIANO_VICTORY_DLG_IDX = 18   # new_char_dialogue_victory.png
 
 
 # ── Dialogue image filenames ──────────────────────────────────────────────────
-_DLG = "character/char_dialogue/"
+_DLG = "character/char_dialogue_new/"
 _DLG_FILES = [
-    _DLG + "character_dialogue_happy_claphand.png",   # 0  img1
-    _DLG + "character_dialogue_smile.png",             # 1  img2
-    _DLG + "character_dialogue_normal.png",            # 2  img3
-    _DLG + "character_dialogue_smile2.png",            # 3  img4
-    _DLG + "character_dialogue_wink2.png",             # 4  img5
-    _DLG + "character_dialogue_shock.png",             # 5  img6
-    _DLG + "character_dialogue_excited.png",           # 6  img7
-    _DLG + "character_dialogue_sadface.png",           # 7  img8
-    _DLG + "character_dialogue_plain_smile.png",       # 8  img9
-    _DLG + "character_dialogue_cry.png",               # 9  img10
-    _DLG + "char_dialogue_ lightsmile.png",            # 10 img11
-    _DLG + "char_dialogue_ terrified.png",             # 11 img12
-    _DLG + "char_dialogue_ afraid_panic.png",          # 12 img13
-    _DLG + "char_dialogue_suddenrealization.png",      # 13 img14
-    _DLG + "char_dialogue_curiosity.png",              # 14 img15
-    _DLG + "char_dialogue_raiseeyebrow_judge.png",     # 15 img16
-    _DLG + "char_dialogue_doubt.png",                  # 16 img17
-    _DLG + "char_dialogue_stareyes.png",               # 17 img18
-    _DLG + "character_dialogue_happy_excited.png",     # 18 img19
-    _DLG + "char_dialogue_frustrated.png",             # 19 img20
-    _DLG + "char_dialogue_ smirking.png",              # 20 img21
-    _DLG + "char_dialogue_ suspecious.png",            # 21 img22
-    _DLG + "char_dialogue_ spiraleyes.png",            # 22 img23
-    _DLG + "char_dialogue_pouting.png",                # 23 img24
+    _DLG + "new_char_dialogue_happy_claphand.png",   # 0  img1
+    _DLG + "new_char_dialogue_smile2.png",            # 1  img2
+    _DLG + "new_char_dialogue_normal.png",            # 2  img3
+    _DLG + "new_char_dialogue_smile2.png",            # 3  img4
+    _DLG + "new_char_dialogue_wink2.png",             # 4  img5
+    _DLG + "new_char_dialogue_shock.png",             # 5  img6
+    _DLG + "new_char_dialogue_excited.png",           # 6  img7
+    _DLG + "new_char_dialogue_sad_depress.png",       # 7  img8
+    _DLG + "new_char_dialogue_plain_smile.png",       # 8  img9
+    _DLG + "new_char_dialogue_cry.png",               # 9  img10
+    _DLG + "new_char_dialogue_lightsmile.png",        # 10 img11
+    _DLG + "new_char_dialogue_terrified.png",         # 11 img12
+    _DLG + "new_char_dialogue_afraid_panic.png",      # 12 img13
+    _DLG + "new_char_dialogue_suddenrealization.png", # 13 img14
+    _DLG + "new_char_dialogue_curiosity.png",         # 14 img15
+    _DLG + "new_char_dialogue_judge.png",             # 15 img16
+    _DLG + "new_char_dialogue_doubt.png",             # 16 img17
+    _DLG + "new_char_dialogue_stareyes.png",          # 17 img18
+    _DLG + "new_char_dialogue_victory.png",            # 18 img19
+    _DLG + "new_char_dialogue_frustrated.png",        # 19 img20
+    _DLG + "new_char_dialogue_smirking2.png",         # 20 img21
+    _DLG + "new_char_dialogue_suspecious.png",        # 21 img22
+    _DLG + "new_char_dialogue_spiraleyes.png",        # 22 img23
+    _DLG + "new_char_dialogue_pouting.png",           # 23 img24
 ]
 
 # line → _DLG_FILES index  (None = cinematic / piano — no dialogue box)
@@ -129,7 +164,7 @@ _LINE_TO_DLG = [
     15,   # 19 raiseeyebrow_judge
     17,   # 20 stareyes
     None, # 21 piano minigame
-    None, # 22 cinematic — room door
+    13,   # 22 suddenrealization — door is glowing
     None, # 23 cinematic — room door luna
 ]
 
@@ -141,30 +176,36 @@ class PrologueScene:
 
         # ── Backgrounds ───────────────────────────────────────────────────────
         self.backgrounds = [
-            _scale_bg("intro/begining/afterparty.png"),           # lines 0-2
-            _scale_bg("intro/begining/walkalone.png"),            # lines 3-5
-            _scale_bg("intro/begining/turn_into_fog.png"),        # lines 6-8
-            _scale_bg("intro/begining/forest with house.png"),    # lines 9-11
-            _scale_bg("intro/begining/woodenhouse_overview.png"), # lines 12-14
-            _scale_bg("intro/begining/room_inside_piano.png"),    # lines 15-17
-            _scale_bg("intro/begining/piano_overview.png"),       # lines 18-20
-            _scale_bg("intro/begining/piano (1).png"),            # line 21 idle
-            _scale_bg("intro/begining/room_door.png"),            # line 22
-            _scale_bg("intro/begining/room_door_luna.png"),       # line 23
+            _scale_bg("intro/begining/afterparty.png"),                        # lines 0-2
+            _scale_bg("intro/begining/walkalone.png"),                         # lines 3-5
+            _scale_bg("intro/begining/turn_into_fog.png"),                     # lines 6-8
+            _scale_bg("intro/begining/forest with house.png"),                 # lines 9-11
+            _scale_bg("intro/begining/woodenhouse_overview.png"),              # lines 12-14
+            _scale_bg("intro/begining/room_inside_piano.png"),                 # lines 15-17
+            _scale_bg("intro/begining/piano_overview.png"),                    # lines 18-20 (discover piano)
+            _scale_bg_blur("intro/begining/piano_overview.png", radius=8),     # line 21 (piano interactive, blurred)
+            _scale_bg("intro/begining/room_door.png"),                         # line 22
+            _scale_bg("intro/begining/room_door_luna.png"),                    # line 23
         ]
 
-        # Piano-specific backgrounds
-        self.piano2_bg   = _scale_bg("intro/begining/piano (2).png")
-
-        # Sheet music strip (displayed at top during piano scene)
-        sheet_src = _load("character/char_dialogue/piano_sheetmusic1.png")
-        self.sheet_music = pygame.transform.scale(sheet_src, (SCREEN_WIDTH, 90))
+        # Music sheet at 70% of screen width, centered, positioned above piano keys
+        ms_src = _load("intro/begining/musicsheet_new.png")
+        ms_w = int(SCREEN_WIDTH * 0.7)
+        ms_h = int(ms_w * ms_src.get_height() / ms_src.get_width())
+        self.musicsheet_surf = pygame.transform.scale(ms_src, (ms_w, ms_h))
+        self.musicsheet_x = (SCREEN_WIDTH - ms_w) // 2
+        self.musicsheet_y = _KEYS_Y - ms_h - 30
 
         # ── Dialogue box images ────────────────────────────────────────────────
+        # Index 0 (happy_claphand) is a full-body portrait — needs its own scale
         self.dlg_surfs = []
         self.dlg_poses = []
-        for rel in _DLG_FILES:
-            surf, pos = _scale_dlg(rel)
+        for i, rel in enumerate(_DLG_FILES):
+            if i == 0:
+                surf, pos = _scale_dlg(rel, target_w=950, max_h=450)
+                pos = (270, 350)
+            else:
+                surf, pos = _scale_dlg(rel)
             self.dlg_surfs.append(surf)
             self.dlg_poses.append(pos)
 
@@ -174,8 +215,8 @@ class PrologueScene:
         self.piano_font  = pygame.font.Font(None, 28)
         self.label_font  = pygame.font.Font(None, 22)
 
-        self.textX = 500
-        self.textY = 635
+        self.textX = 530
+        self.textY = 640
 
         # ── Skip button ───────────────────────────────────────────────────────
         skip_W, skip_H   = 180, 84
@@ -215,16 +256,18 @@ class PrologueScene:
             # Scene 8: piano interactive (21) — handled separately
             "",
             # Scene 9-10: cinematic door shots (22-23)
-            "",
+            "W-wait... the door?!\nWhy is there light coming from it?!",
             "",
         ]
 
         self.currLine = 0
 
         # ── Piano mini-game state ─────────────────────────────────────────────
-        self._piano_flash      = {}   # pygame_key → frames left to flash
-        self.piano_notes_played = 0
-        self.piano_can_advance  = False
+        self._piano_flash     = {}    # pygame_key → frames left to flash
+        self.piano_step       = 0     # how far through _TWINKLE_SEQ the player is
+        self.piano_can_advance = False
+        self.piano_err_timer  = 0     # frames remaining to show error dialogue
+        self.piano_err_count  = 0     # how many mistakes made (cycles error messages)
 
         # Pre-generate note sounds
         self._piano_sounds = {}
@@ -251,11 +294,19 @@ class PrologueScene:
             if event.type == pygame.KEYDOWN:
                 # Piano note keys (only active on line 21)
                 if self.currLine == 21 and event.key in self._piano_sounds:
-                    self._piano_sounds[event.key].play()
-                    self._piano_flash[event.key] = 18   # ~0.3 s flash
-                    self.piano_notes_played += 1
-                    if self.piano_notes_played >= _MIN_NOTES:
-                        self.piano_can_advance = True
+                    # Ignore input while showing error or after completion
+                    if self.piano_err_timer == 0 and not self.piano_can_advance:
+                        self._piano_sounds[event.key].play()
+                        self._piano_flash[event.key] = 18
+                        if event.key == _TWINKLE_SEQ[self.piano_step]:
+                            self.piano_step += 1
+                            if self.piano_step >= len(_TWINKLE_SEQ):
+                                self.piano_can_advance = True
+                        else:
+                            # Wrong note — reset sequence and show error dialogue
+                            self.piano_step = 0
+                            self.piano_err_count += 1
+                            self.piano_err_timer = 150   # ~2.5 s at 60 fps
 
                 # Advance key
                 elif event.key in (pygame.K_e, pygame.K_SPACE, pygame.K_RETURN):
@@ -269,11 +320,13 @@ class PrologueScene:
                 elif event.key == pygame.K_x:
                     return SCENE_LEVEL1
 
-        # Tick piano flash timers
+        # Tick timers
         for k in list(self._piano_flash.keys()):
             self._piano_flash[k] -= 1
             if self._piano_flash[k] <= 0:
                 del self._piano_flash[k]
+        if self.piano_err_timer > 0:
+            self.piano_err_timer -= 1
 
         if self.currLine >= len(self.dialogue):
             return SCENE_LEVEL1
@@ -286,30 +339,54 @@ class PrologueScene:
 
         # ── Piano mini-game (line 21) ─────────────────────────────────────────
         if line == 21:
-            # Background: piano2 when a key is pressed, else piano1
-            bg = self.piano2_bg if self._piano_flash else self.backgrounds[7]
-            self.screen.blit(bg, (0, 0))
-
-            # Sheet music strip at top
-            self.screen.blit(self.sheet_music, (0, 5))
+            self.screen.blit(self.backgrounds[7], (0, 0))
+            self.screen.blit(self.musicsheet_surf, (self.musicsheet_x, self.musicsheet_y))
 
             # Piano keys
             self._draw_piano_keys()
 
-            # Progress / instruction
-            remaining = max(0, _MIN_NOTES - self.piano_notes_played)
-            if remaining > 0:
-                msg = f"Play {remaining} more note{'s' if remaining != 1 else ''}..."
-                color = (220, 200, 140)
-            else:
+            # Top instruction / completion prompt
+            cx = SCREEN_WIDTH // 2
+            if self.piano_can_advance:
                 msg = "Press E / SPACE to continue"
                 color = (140, 255, 200)
-            msg_surf = self.piano_font.render(msg, True, color)
-            # Shadowed
-            shadow = self.piano_font.render(msg, True, (20, 20, 20))
-            cx = SCREEN_WIDTH // 2
-            self.screen.blit(shadow, shadow.get_rect(center=(cx + 2, 112)))
-            self.screen.blit(msg_surf, msg_surf.get_rect(center=(cx, 110)))
+                msg_surf = self.piano_font.render(msg, True, color)
+                shadow  = self.piano_font.render(msg, True, (20, 20, 20))
+                self.screen.blit(shadow,   shadow.get_rect(center=(cx + 2, 22)))
+                self.screen.blit(msg_surf, msg_surf.get_rect(center=(cx, 20)))
+                # Victory dialogue box
+                v_surf = self.dlg_surfs[_PIANO_VICTORY_DLG_IDX]
+                v_pos  = self.dlg_poses[_PIANO_VICTORY_DLG_IDX]
+                self.screen.blit(v_surf, v_pos)
+                parts = _PIANO_VICTORY_TEXT.split("\n")
+                s1 = self.font.render(parts[0].strip(), True, (80, 50, 20))
+                s2 = self.font.render(parts[1].strip(), True, (80, 50, 20))
+                self.screen.blit(s1, s1.get_rect(center=(self.textX, self.textY - 15)))
+                self.screen.blit(s2, s2.get_rect(center=(self.textX, self.textY + 15)))
+            elif self.piano_err_timer == 0:
+                # Show note progress  (e.g. "Note 3 / 14")
+                msg = f"Note {self.piano_step + 1} / {len(_TWINKLE_SEQ)}"
+                color = (220, 200, 140)
+                msg_surf = self.piano_font.render(msg, True, color)
+                shadow  = self.piano_font.render(msg, True, (20, 20, 20))
+                self.screen.blit(shadow,   shadow.get_rect(center=(cx + 2, 22)))
+                self.screen.blit(msg_surf, msg_surf.get_rect(center=(cx, 20)))
+
+            # Error dialogue overlay (wrong note)
+            if self.piano_err_timer > 0:
+                err_surf = self.dlg_surfs[_PIANO_ERR_DLG_IDX]
+                err_pos  = self.dlg_poses[_PIANO_ERR_DLG_IDX]
+                self.screen.blit(err_surf, err_pos)
+                err_text = _WRONG_NOTE_TEXTS[self.piano_err_count % len(_WRONG_NOTE_TEXTS)]
+                if "\n" in err_text:
+                    parts = err_text.split("\n")
+                    s1 = self.font.render(parts[0].strip(), True, (80, 50, 20))
+                    s2 = self.font.render(parts[1].strip(), True, (80, 50, 20))
+                    self.screen.blit(s1, s1.get_rect(center=(self.textX, self.textY - 15)))
+                    self.screen.blit(s2, s2.get_rect(center=(self.textX, self.textY + 15)))
+                else:
+                    ts = self.font.render(err_text, True, (80, 50, 20))
+                    self.screen.blit(ts, ts.get_rect(center=(self.textX, self.textY)))
 
             self.screen.blit(self.skipBtn, self.skipBtn_pos)
             return

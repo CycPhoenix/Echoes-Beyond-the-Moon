@@ -5,43 +5,81 @@ from utils.constants import (GRAVITY, JUMP_FORCE, MOVE_SPEED, MAX_FALL_SPEED,
 
 _BASE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "character", "char_split")
 
+_ANIM_FOLDERS = {
+    "idle": "luna-idle/images",
+    "walk": "Luna-run/images",
+    "jump": "Luna-jump/images",
+    "run":  "Luna-run/images",
+}
 
-def _load_frames(folder: str, size: tuple[int, int]) -> list[pygame.Surface]:
-    path = os.path.join(_BASE, folder)
-    files = sorted(f for f in os.listdir(path) if f.endswith(".png"))
-    return [pygame.transform.scale(
-        pygame.image.load(os.path.join(path, f)).convert_alpha(), size
-    ) for f in files]
+# Target heights per animation; width is computed from the crop's natural aspect ratio
+# so characters are never squeezed.
+_TARGET_HEIGHT = 112
+_HEIGHT_OVERRIDES = {
+    "idle": 100,   # 10% smaller than default
+    "jump": 123,   # 10% larger than default
+}
 
 
-def _load_single(rel: str, size: tuple[int, int]) -> pygame.Surface:
-    return pygame.transform.scale(
-        pygame.image.load(os.path.join(_BASE, rel)).convert_alpha(), size
-    )
+def _anim_crop_rect(folder_path: str) -> pygame.Rect:
+    """Per-animation bbox so each animation's character fills the frame fully."""
+    from PIL import Image as _PIL
+    union = None
+    for f in sorted(os.listdir(folder_path)):
+        if not f.lower().endswith(".png"):
+            continue
+        bbox = _PIL.open(os.path.join(folder_path, f)).convert("RGBA").getbbox()
+        if bbox:
+            if union is None:
+                union = list(bbox)
+            else:
+                union[0] = min(union[0], bbox[0])
+                union[1] = min(union[1], bbox[1])
+                union[2] = max(union[2], bbox[2])
+                union[3] = max(union[3], bbox[3])
+    if union is None:
+        return pygame.Rect(0, 0, 256, 256)
+    l, t, r, b = union
+    return pygame.Rect(l, t, r - l, b - t)
 
 
-_SIZE = (48, 96)   # ~0.5:1 ratio — matches natural proportions of sprites
+def _load_all_anims() -> dict:
+    result = {}
+    for key, folder in _ANIM_FOLDERS.items():
+        path  = os.path.join(_BASE, folder)
+        crop  = _anim_crop_rect(path)
+        h     = _HEIGHT_OVERRIDES.get(key, _TARGET_HEIGHT)
+        w     = max(1, round(crop.width * h / crop.height))  # preserve natural aspect ratio
+        files = sorted(f for f in os.listdir(path) if f.lower().endswith(".png"))
+        surfs = []
+        for f in files:
+            raw     = pygame.image.load(os.path.join(path, f)).convert_alpha()
+            cropped = raw.subsurface(crop).copy()
+            scaled  = pygame.transform.scale(cropped, (w, h))
+            surfs.append(scaled)
+        result[key] = surfs
+    return result
 
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, x: int, y: int):
         super().__init__()
 
-        # Load all animation frames
+        _a = _load_all_anims()
         self._anims = {
-            "IDLE_R":  [_load_single("char_idle_new.png", _SIZE)],
-            "IDLE_L":  [pygame.transform.flip(_load_single("char_idle_new.png", _SIZE), True, False)],
-            "WALK_R":  _load_frames("character_walk_right_new", _SIZE),
-            "WALK_L":  _load_frames("character_walk_left_new",  _SIZE),
-            "JUMP_R":  _load_frames("character_small_jump_right_new", _SIZE),
-            "JUMP_L":  _load_frames("character_small_jump_left_new",  _SIZE),
-            "RUN_R":   _load_frames("run_right", _SIZE),
-            "RUN_L":   _load_frames("run_left",  _SIZE),
+            "IDLE_R":  _a["idle"],
+            "IDLE_L":  [pygame.transform.flip(f, True, False) for f in _a["idle"]],
+            "WALK_R":  _a["walk"],
+            "WALK_L":  [pygame.transform.flip(f, True, False) for f in _a["walk"]],
+            "JUMP_R":  _a["jump"],
+            "JUMP_L":  [pygame.transform.flip(f, True, False) for f in _a["jump"]],
+            "RUN_R":   _a["run"],
+            "RUN_L":   [pygame.transform.flip(f, True, False) for f in _a["run"]],
         }
-        self._anim_key  = "IDLE_R"
-        self._frame_idx = 0
+        self._anim_key    = "IDLE_R"
+        self._frame_idx   = 0
         self._frame_timer = 0
-        self._frame_speed = 6   # frames between animation advances
+        self._frame_speed = 4   # advance one frame every 4 game ticks (~15 fps)
 
         self.image = self._anims["IDLE_R"][0]
         self.rect  = self.image.get_rect(topleft=(x, y))
@@ -96,7 +134,7 @@ class Player(pygame.sprite.Sprite):
         for plat in platforms:
             if self.rect.colliderect(plat.rect):
                 if self.vel.y > 0 and self.rect.bottom - self.vel.y <= plat.rect.top + 10:
-                    self.rect.bottom = plat.rect.top
+                    self.rect.bottom = plat.rect.top + 1  # 1px overlap keeps colliderect reliable
                     self.pos.y = float(self.rect.y)
                     self.vel.y = 0
                     self.on_ground = True
@@ -115,7 +153,6 @@ class Player(pygame.sprite.Sprite):
         if self.state == "DEATH":
             return
 
-        # Pick anim key
         if self.state in ("IDLE", "PANIC"):
             key = "IDLE_R" if self.facing_right else "IDLE_L"
         elif self.state == "WALK":
@@ -126,8 +163,8 @@ class Player(pygame.sprite.Sprite):
             key = "IDLE_R" if self.facing_right else "IDLE_L"
 
         if key != self._anim_key:
-            self._anim_key  = key
-            self._frame_idx = 0
+            self._anim_key    = key
+            self._frame_idx   = 0
             self._frame_timer = 0
 
         frames = self._anims[self._anim_key]

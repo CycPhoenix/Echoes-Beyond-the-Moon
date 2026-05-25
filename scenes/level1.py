@@ -165,7 +165,7 @@ class Level1Scene:
 
         self.camera    = Camera()
         self.o2        = OxygenSystem()
-        self.player    = Player(100, 554)   # 554 = _GROUND_Y - 96 (player height)
+        self.player    = Player(100, 490)   # 490 = _GROUND_Y - 160 (player height)
         self.particles = ParticleSystem()
         self.hud       = HUD(self.o2, self.player)
 
