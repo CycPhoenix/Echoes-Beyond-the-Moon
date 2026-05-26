@@ -1,6 +1,7 @@
 import array
 import math
 import os
+import random
 import pygame
 import sys
 
@@ -72,7 +73,7 @@ def _make_piano_note(freq: float, sample_rate: int = 44100,
     return pygame.mixer.Sound(buffer=buf)
 
 
-# ── Piano key definitions ─────────────────────────────────────────────────────
+# ── Piano key definitions 
 _PIANO_KEYS = [
     (pygame.K_a, 'A', 'C', 261.63),
     (pygame.K_s, 'S', 'D', 293.66),
@@ -87,7 +88,7 @@ _KEY_H   = 130
 _KEYS_X0 = (SCREEN_WIDTH - len(_PIANO_KEYS) * _KEY_W) // 2
 _KEYS_Y  = SCREEN_HEIGHT - _KEY_H - 28
 
-# Twinkle Twinkle Little Star — first two phrases (C C G G A A G  F F E E D D C)
+# Twinkle Twinkle Little Star
 _TWINKLE_SEQ = [
     pygame.K_a, pygame.K_a,   # C C  — Twinkle twinkle
     pygame.K_g, pygame.K_g,   # G G  — little star
@@ -107,11 +108,11 @@ _WRONG_NOTE_TEXTS = [
 
 _PIANO_VICTORY_TEXT = "Twinkle twinkle, I'm a star!\nI played it all — and here we are!"
 
-_PIANO_ERR_DLG_IDX     = 7    # new_char_dialogue_sad_depress.png
-_PIANO_VICTORY_DLG_IDX = 18   # new_char_dialogue_victory.png
+_PIANO_ERR_DLG_IDX     = 7    
+_PIANO_VICTORY_DLG_IDX = 18   
 
 
-# ── Dialogue image filenames ──────────────────────────────────────────────────
+# ── Dialogue image filenames 
 _DLG = "character/char_dialogue_new/"
 _DLG_FILES = [
     _DLG + "new_char_dialogue_happy_claphand.png",   # 0  img1
@@ -174,21 +175,21 @@ class PrologueScene:
         self.screen = screen
         self.state  = state
 
-        # ── Backgrounds ───────────────────────────────────────────────────────
+        # ── Backgrounds 
         self.backgrounds = [
-            _scale_bg("intro/begining/afterparty.png"),                        # lines 0-2
+            _scale_bg("intro/begining/new_after party.png"),                    # lines 0-2
             _scale_bg("intro/begining/walkalone.png"),                         # lines 3-5
             _scale_bg("intro/begining/turn_into_fog.png"),                     # lines 6-8
             _scale_bg("intro/begining/forest with house.png"),                 # lines 9-11
             _scale_bg("intro/begining/woodenhouse_overview.png"),              # lines 12-14
             _scale_bg("intro/begining/room_inside_piano.png"),                 # lines 15-17
-            _scale_bg("intro/begining/piano_overview.png"),                    # lines 18-20 (discover piano)
-            _scale_bg_blur("intro/begining/piano_overview.png", radius=8),     # line 21 (piano interactive, blurred)
+            _scale_bg("intro/begining/piano_overview.png"),                    # lines 18-20 
+            _scale_bg_blur("intro/begining/piano_overview.png", radius=8),     # line 21 
             _scale_bg("intro/begining/room_door.png"),                         # line 22
             _scale_bg("intro/begining/room_door_luna.png"),                    # line 23
         ]
 
-        # Music sheet at 70% of screen width, centered, positioned above piano keys
+        # Music sheet 
         ms_src = _load("intro/begining/musicsheet_new.png")
         ms_w = int(SCREEN_WIDTH * 0.7)
         ms_h = int(ms_w * ms_src.get_height() / ms_src.get_width())
@@ -196,8 +197,8 @@ class PrologueScene:
         self.musicsheet_x = (SCREEN_WIDTH - ms_w) // 2
         self.musicsheet_y = _KEYS_Y - ms_h - 30
 
-        # ── Dialogue box images ────────────────────────────────────────────────
-        # Index 0 (happy_claphand) is a full-body portrait — needs its own scale
+        # ── Dialogue box images 
+        
         self.dlg_surfs = []
         self.dlg_poses = []
         for i, rel in enumerate(_DLG_FILES):
@@ -209,7 +210,7 @@ class PrologueScene:
             self.dlg_surfs.append(surf)
             self.dlg_poses.append(pos)
 
-        # ── Fonts ────────────────────────────────────────────────────────────
+        # ── Fonts 
         self.font        = pygame.font.Font(None, 31)
         self.hint_font   = pygame.font.Font(None, 26)
         self.piano_font  = pygame.font.Font(None, 28)
@@ -218,12 +219,12 @@ class PrologueScene:
         self.textX = 530
         self.textY = 640
 
-        # ── Skip button ───────────────────────────────────────────────────────
+        # ── Skip button 
         skip_W, skip_H   = 180, 84
         self.skipBtn     = pygame.transform.scale(_load("menu/extra_14.png"), (skip_W, skip_H))
         self.skipBtn_pos = (SCREEN_WIDTH - skip_W - 15, SCREEN_HEIGHT - skip_H - 15)
 
-        # ── Dialogue lines ────────────────────────────────────────────────────
+        # ── Dialogue lines 
         self.dialogue = [
             # Scene 1: afterparty (0-2)
             "Best party ever, Isabelle!",
@@ -262,12 +263,46 @@ class PrologueScene:
 
         self.currLine = 0
 
-        # ── Piano mini-game state ─────────────────────────────────────────────
-        self._piano_flash     = {}    # pygame_key → frames left to flash
-        self.piano_step       = 0     # how far through _TWINKLE_SEQ the player is
+        # ── Audio ─────────────────────────────────────────────────────────
+        pygame.mixer.music.load(os.path.join(_BASE, "audio/backgroundmusic/crowd_noise.mp3"))
+        pygame.mixer.music.set_volume(0.25)
+        pygame.mixer.music.play(-1)
+        self._music_phase = 0   # 0=party  1=forest  2=piano snippet  3=silent
+
+        self._sfx_owl = [
+            pygame.mixer.Sound(os.path.join(_BASE, "audio/soundeffects/owlsound.mp3")),
+            pygame.mixer.Sound(os.path.join(_BASE, "audio/soundeffects/owlsound_2.mp3")),
+        ]
+        for s in self._sfx_owl:
+            s.set_volume(0.55)
+        self._owl_timer       = 300   # frames until first hoot (~5 s)
+        self._piano_sfx_timer = 0     # counts down the 5-second piano snippet
+
+        self._sfx_click = pygame.mixer.Sound(
+            os.path.join(_BASE, "audio/soundeffects/Selection_Click.wav")
+        )
+        self._sfx_click.set_volume(0.6)
+
+        self._sfx_energy = pygame.mixer.Sound(
+            os.path.join(_BASE, "audio/soundeffects/energy.mp3")
+        )
+        self._sfx_energy.set_volume(0.7)
+        self._energy_played        = False
+        self._energy_channel       = None
+        self._energy_fadeout_timer = 0
+
+        self._sfx_wooden_floor = pygame.mixer.Sound(
+            os.path.join(_BASE, "audio/soundeffects/wooden_floor.mp3")
+        )
+        self._sfx_wooden_floor.set_volume(0.6)
+        self._wooden_floor_played = False
+
+        # ── Piano mini-game state
+        self._piano_flash     = {}    
+        self.piano_step       = 0     
         self.piano_can_advance = False
-        self.piano_err_timer  = 0     # frames remaining to show error dialogue
-        self.piano_err_count  = 0     # how many mistakes made (cycles error messages)
+        self.piano_err_timer  = 0     
+        self.piano_err_count  = 0     
 
         # Pre-generate note sounds
         self._piano_sounds = {}
@@ -276,7 +311,6 @@ class PrologueScene:
         for key, _, _, freq in _PIANO_KEYS:
             self._piano_sounds[key] = _make_piano_note(freq, sample_rate=sr)
 
-    # ─────────────────────────────────────────────────────────────────────────
     def _bg_index(self) -> int:
         thresholds = [3, 6, 9, 12, 15, 18, 21, 22, 23]
         for i, t in enumerate(thresholds):
@@ -284,7 +318,6 @@ class PrologueScene:
                 return i
         return len(self.backgrounds) - 1
 
-    # ─────────────────────────────────────────────────────────────────────────
     def update(self, dt) -> str | None:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -292,7 +325,7 @@ class PrologueScene:
                 sys.exit()
 
             if event.type == pygame.KEYDOWN:
-                # Piano note keys (only active on line 21)
+                # Piano note keys 
                 if self.currLine == 21 and event.key in self._piano_sounds:
                     # Ignore input while showing error or after completion
                     if self.piano_err_timer == 0 and not self.piano_can_advance:
@@ -303,7 +336,7 @@ class PrologueScene:
                             if self.piano_step >= len(_TWINKLE_SEQ):
                                 self.piano_can_advance = True
                         else:
-                            # Wrong note — reset sequence and show error dialogue
+                            # Wrong note 
                             self.piano_step = 0
                             self.piano_err_count += 1
                             self.piano_err_timer = 150   # ~2.5 s at 60 fps
@@ -312,13 +345,56 @@ class PrologueScene:
                 elif event.key in (pygame.K_e, pygame.K_SPACE, pygame.K_RETURN):
                     if self.currLine == 21:
                         if self.piano_can_advance:
+                            self._sfx_click.play()
+                            self._energy_channel       = self._sfx_energy.play(maxtime=2000)
+                            self._energy_fadeout_timer = 90   # 1.5 s at 60 fps, then 0.5 s fade
                             self.currLine += 1
                     else:
+                        self._sfx_click.play()
                         self.currLine += 1
 
                 # Skip entire prologue
                 elif event.key == pygame.K_x:
                     return SCENE_LEVEL1
+
+        # Switch from party music to forest ambience once Luna leaves the party
+        if self._music_phase == 0 and self.currLine >= 3:
+            pygame.mixer.music.load(os.path.join(_BASE, "audio/backgroundmusic/forest_birdchip.mp3"))
+            pygame.mixer.music.set_volume(0.3)
+            pygame.mixer.music.play(-1)
+            self._music_phase = 1
+
+        # Wooden floor creak when Luna first steps inside the house (line 15)
+        if not self._wooden_floor_played and self.currLine >= 15:
+            self._sfx_wooden_floor.play()
+            self._wooden_floor_played = True
+
+        # Owl hoots at random intervals — only while outside (before entering the house, line 15)
+        if self._music_phase == 1 and self.currLine < 15:
+            self._owl_timer -= 1
+            if self._owl_timer <= 0:
+                random.choice(self._sfx_owl).play()
+                self._owl_timer = random.randint(360, 600)  # 6–10 s between hoots
+
+        # Piano snippet when Luna hears sound coming from inside the house (line 11)
+        if self._music_phase == 1 and self.currLine >= 11:
+            pygame.mixer.music.load(os.path.join(_BASE, "audio/backgroundmusic/pianomusic.mp3"))
+            pygame.mixer.music.set_volume(0.4)
+            pygame.mixer.music.play()
+            self._music_phase     = 2
+            self._piano_sfx_timer = 180   # 3 seconds at 60 fps
+
+        if self._music_phase == 2:
+            self._piano_sfx_timer -= 1
+            if self._piano_sfx_timer <= 0:
+                pygame.mixer.music.fadeout(1000)
+                self._music_phase = 3
+
+        # Fade out energy sound in the last 0.5 s
+        if self._energy_fadeout_timer > 0:
+            self._energy_fadeout_timer -= 1
+            if self._energy_fadeout_timer == 0 and self._energy_channel:
+                self._energy_channel.fadeout(500)
 
         # Tick timers
         for k in list(self._piano_flash.keys()):
@@ -333,11 +409,10 @@ class PrologueScene:
 
         return None
 
-    # ─────────────────────────────────────────────────────────────────────────
     def draw(self):
         line = self.currLine
 
-        # ── Piano mini-game (line 21) ─────────────────────────────────────────
+        # ── Piano mini-game 
         if line == 21:
             self.screen.blit(self.backgrounds[7], (0, 0))
             self.screen.blit(self.musicsheet_surf, (self.musicsheet_x, self.musicsheet_y))
@@ -345,7 +420,7 @@ class PrologueScene:
             # Piano keys
             self._draw_piano_keys()
 
-            # Top instruction / completion prompt
+            # Top instruction
             cx = SCREEN_WIDTH // 2
             if self.piano_can_advance:
                 msg = "Press E / SPACE to continue"
@@ -364,15 +439,16 @@ class PrologueScene:
                 self.screen.blit(s1, s1.get_rect(center=(self.textX, self.textY - 15)))
                 self.screen.blit(s2, s2.get_rect(center=(self.textX, self.textY + 15)))
             elif self.piano_err_timer == 0:
-                # Show note progress  (e.g. "Note 3 / 14")
-                msg = f"Note {self.piano_step + 1} / {len(_TWINKLE_SEQ)}"
+
+                # Show note progress
+                msg = f"Note {self.piano_step} / {len(_TWINKLE_SEQ)}"
                 color = (220, 200, 140)
                 msg_surf = self.piano_font.render(msg, True, color)
                 shadow  = self.piano_font.render(msg, True, (20, 20, 20))
                 self.screen.blit(shadow,   shadow.get_rect(center=(cx + 2, 22)))
                 self.screen.blit(msg_surf, msg_surf.get_rect(center=(cx, 20)))
 
-            # Error dialogue overlay (wrong note)
+            # Error dialogue (wrong note)
             if self.piano_err_timer > 0:
                 err_surf = self.dlg_surfs[_PIANO_ERR_DLG_IDX]
                 err_pos  = self.dlg_poses[_PIANO_ERR_DLG_IDX]
@@ -391,7 +467,7 @@ class PrologueScene:
             self.screen.blit(self.skipBtn, self.skipBtn_pos)
             return
 
-        # ── Normal dialogue lines ─────────────────────────────────────────────
+        # ── Normal dialogue lines 
         self.screen.blit(self.backgrounds[self._bg_index()], (0, 0))
 
         dlg_idx = _LINE_TO_DLG[line] if line < len(_LINE_TO_DLG) else None
@@ -416,7 +492,6 @@ class PrologueScene:
                                      True, (200, 200, 200))
         self.screen.blit(hint, hint.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 15)))
 
-    # ─────────────────────────────────────────────────────────────────────────
     def _draw_piano_keys(self):
         font_note = self.label_font
         font_key  = self.label_font
@@ -436,7 +511,7 @@ class PrologueScene:
             else:
                 color = (235, 230, 215)
 
-            # Shadow / depth
+            # Shadow 
             pygame.draw.rect(self.screen, (80, 60, 40),
                              (x + 3, y + 3, w, _KEY_H), border_radius=6)
             pygame.draw.rect(self.screen, color,
@@ -444,10 +519,10 @@ class PrologueScene:
             pygame.draw.rect(self.screen, (100, 80, 55),
                              (x, y, w, _KEY_H), 2, border_radius=6)
 
-            # Note label (top of key)
+            # Note label 
             ns = font_note.render(note_label, True, (60, 40, 20))
             self.screen.blit(ns, ns.get_rect(center=(x + w // 2, y + 18)))
 
-            # Keyboard shortcut (bottom of key)
+            # Keyboard shortcut 
             ks = font_key.render(kb_label, True, (100, 70, 40))
             self.screen.blit(ks, ks.get_rect(center=(x + w // 2, y + _KEY_H - 16)))

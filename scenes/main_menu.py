@@ -50,6 +50,15 @@ class MainMenuScene:
 
         self.menu.set_relative_position(50, 85)
 
+        # ── Audio ─────────────────────────────────────────────────────────
+        pygame.mixer.music.load("assets/audio/backgroundmusic/intro.mp3")
+        pygame.mixer.music.set_volume(0.35)
+        pygame.mixer.music.play(-1)   # loop forever
+
+        self._sfx_select  = pygame.mixer.Sound("assets/audio/soundeffects/menu_select.wav")
+        self._sfx_select.set_volume(0.6)
+        self._last_selected = None    # track selection changes
+
     # ── Glow helper ───────────────────────────────────────────────────────
     def _draw_glow(self, rect):
         """Draw pulsing concentric border rings around rect to simulate glow."""
@@ -87,6 +96,12 @@ class MainMenuScene:
                 pygame.quit()
                 sys.exit()
         self.menu.update(events)
+
+        # Play select sound when highlighted button changes
+        sel = self.menu.get_selected_widget()
+        if sel is not None and sel is not self._last_selected:
+            self._sfx_select.play()
+            self._last_selected = sel
 
         result, self._next = self._next, None
         return result

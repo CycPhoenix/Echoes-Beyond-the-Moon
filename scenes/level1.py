@@ -160,12 +160,12 @@ class Level1Scene:
         self.state  = state
 
         # Parallax backgrounds
-        self.bg_far  = _load_bg("background/background_1.png")
+        self.bg_far  = _load_bg("level1/moonsurface_plain.png")
         self.bg_near = _load_bg("level1/moonsurface_base.png")
 
         self.camera    = Camera()
         self.o2        = OxygenSystem()
-        self.player    = Player(100, 490)   # 490 = _GROUND_Y - 160 (player height)
+        self.player    = Player(100, 490)   
         self.particles = ParticleSystem()
         self.hud       = HUD(self.o2, self.player)
 
