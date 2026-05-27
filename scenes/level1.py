@@ -4,7 +4,7 @@ import random
 import pygame
 
 from utils.constants import (SCREEN_WIDTH, SCREEN_HEIGHT, BLACK,
-                              SCENE_HANDOFF, SCENE_GAMEOVER,
+                              SCENE_MENU, SCENE_LEVEL1, SCENE_HANDOFF, SCENE_GAMEOVER,
                               METEOR_SPAWN_FRAMES, OXYGEN_VENT_REFILL,
                               VENDING_GEM_COST, OXYGEN_MAX)
 from utils.game_state import GameState
@@ -77,61 +77,42 @@ def _generate_level():
     return platforms, gems, o2_tanks, vents, vending, base_ground_x, base_ground_y, airlock_trigger
 
 
-_DOOR_SIZE = (80, 80)
+
+_BASE_IMG_W = 600
+_BASE_IMG_H = int(_BASE_IMG_W * 1215 / 2160)   # ~338px, preserves aspect ratio
 
 
 class ScienceBase:
-    """Drawn at the end of level 1 — building + animated airlock door."""
+    """Drawn at the end of level 1 — sciencelab_dooropen.png sprite."""
     def __init__(self, x: int, ground_y: int):
         self.x        = x
         self.ground_y = ground_y
-        self.font     = pygame.font.SysFont(None, 28)
 
-        # Load both door frames
-        door_frames = []
-        for fname in ("base_door (1).png", "base_door (2).png"):
-            src = pygame.image.load(os.path.join(_ASSETS, "level1", fname)).convert_alpha()
-            door_frames.append(pygame.transform.scale(src, _DOOR_SIZE))
-        self._door_anim = FrameAnimation(door_frames, fps=2, loop=True)
+        src = pygame.image.load(os.path.join(_ASSETS, "level1", "sciencelab_dooropen.png")).convert_alpha()
+        self.image = pygame.transform.scale(src, (_BASE_IMG_W, _BASE_IMG_H))
 
-        # World-space collision rect for the airlock door
+        # Door collision rect — roughly centre-bottom of building
+        door_w, door_h = 80, 100
         self.door_rect = pygame.Rect(
-            x + 160, ground_y - _DOOR_SIZE[1], _DOOR_SIZE[0], _DOOR_SIZE[1]
+            x + _BASE_IMG_W // 2 - door_w // 2,
+            ground_y - door_h,
+            door_w, door_h
         )
 
     def update(self):
-        self._door_anim.update()
+        pass   # no animation needed
 
     def draw(self, screen: pygame.Surface, camera):
-        ox = -camera.offset_x
-        gx = self.x + ox
-        gy = self.ground_y
-
-        # Main dome body
-        pygame.draw.rect(screen, (60, 80, 110),  (gx,        gy - 160, 400, 160))
-        # Dome arc on top
-        pygame.draw.ellipse(screen, (70, 100, 140), (gx + 50,  gy - 220, 300, 120))
-        # Windows
-        for wx in [gx + 40, gx + 120, gx + 200, gx + 290]:
-            pygame.draw.rect(screen, (140, 200, 240), (wx, gy - 130, 50, 40))
-            pygame.draw.rect(screen, (100, 160, 200), (wx, gy - 130, 50, 40), 2)
-        # Animated airlock door
-        door_frame = self._door_anim.get_frame()
-        screen.blit(door_frame, (gx + 160, gy - _DOOR_SIZE[1]))
-        # Sign
-        label = self.font.render("SCIENCE BASE", True, (0, 220, 200))
-        screen.blit(label, (gx + 130, gy - 185))
-        # Warning lights
-        light_col = (255, 80, 0) if (pygame.time.get_ticks() // 500) % 2 == 0 else (100, 30, 0)
-        pygame.draw.circle(screen, light_col, (gx + 10,  gy - 170), 8)
-        pygame.draw.circle(screen, light_col, (gx + 390, gy - 170), 8)
+        gx = self.x - camera.offset_x
+        gy = self.ground_y - _BASE_IMG_H   # bottom of image sits on ground
+        screen.blit(self.image, (gx, gy))
 
 
 class VendingMachine(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
-        self.image = pygame.Surface((32, 48))
-        self.image.fill((100, 100, 200))
+        # Invisible — no placeholder rect drawn
+        self.image = pygame.Surface((32, 48), pygame.SRCALPHA)
         self.rect  = self.image.get_rect(topleft=(x, y))
         self.interaction_rect = self.rect.inflate(40, 0)
 
@@ -139,8 +120,8 @@ class VendingMachine(pygame.sprite.Sprite):
 class OxygenVent(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
-        self.image = pygame.Surface((24, 24))
-        self.image.fill((80, 200, 220))
+        # Invisible — no placeholder rect drawn
+        self.image = pygame.Surface((24, 24), pygame.SRCALPHA)
         self.rect  = self.image.get_rect(topleft=(x, y))
 
 
@@ -183,6 +164,9 @@ class Level1Scene:
         self.font         = pygame.font.SysFont(None, 36)
         self.death_timer  = 0
         self.next_scene   = None
+        self.paused       = False
+        self._pause_font  = pygame.font.SysFont(None, 64)
+        self._pause_small = pygame.font.SysFont(None, 38)
 
     def _build_level(self):
         plats, gems, o2s, vents, vending, base_x, base_y, airlock_x = _generate_level()
@@ -207,8 +191,20 @@ class Level1Scene:
             if event.type == pygame.QUIT:
                 pygame.quit()
                 raise SystemExit
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_e:
-                self._try_vend()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.paused = not self.paused
+                if self.paused:
+                    if event.key == pygame.K_r:
+                        return SCENE_LEVEL1
+                    if event.key == pygame.K_m:
+                        return SCENE_MENU
+                else:
+                    if event.key == pygame.K_e:
+                        self._try_vend()
+
+        if self.paused:
+            return None
 
         if self.player.state == "DEATH":
             self.death_timer += 1
@@ -263,15 +259,32 @@ class Level1Scene:
                 txt = self.font.render("LOST IN THE VOID", True, (200, 80, 80))
                 self.screen.blit(txt, txt.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)))
 
+        if self.paused:
+            self._draw_pause()
+
+    def _draw_pause(self):
+        overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 160))
+        self.screen.blit(overlay, (0, 0))
+        cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
+        box = pygame.Rect(0, 0, 420, 280)
+        box.center = (cx, cy)
+        pygame.draw.rect(self.screen, (15, 15, 30), box, border_radius=14)
+        pygame.draw.rect(self.screen, (0, 200, 180), box, 2, border_radius=14)
+        title = self._pause_font.render("PAUSED", True, (0, 220, 200))
+        self.screen.blit(title, title.get_rect(center=(cx, cy - 90)))
+        for i, text in enumerate(["ESC  —  Resume", "R     —  Restart", "M    —  Main Menu"]):
+            surf = self._pause_small.render(text, True, (200, 200, 200))
+            self.screen.blit(surf, surf.get_rect(center=(cx, cy - 20 + i * 50)))
+
     def _draw_parallax(self):
-        # Far layer — moves at 10% camera speed
-        far_x = -(self.camera.offset_x * 0.1) % SCREEN_WIDTH
-        self.screen.blit(self.bg_far,  (far_x,             0))
-        self.screen.blit(self.bg_far,  (far_x - SCREEN_WIDTH, 0))
-        # Near layer — moves at 40% camera speed
-        near_x = -(self.camera.offset_x * 0.4) % SCREEN_WIDTH
-        self.screen.blit(self.bg_near, (near_x,             0))
-        self.screen.blit(self.bg_near, (near_x - SCREEN_WIDTH, 0))
+        # Integer offset — float modulo causes sub-pixel gap at seam
+        # 3 copies guarantee full coverage at any scroll position
+        far_x  = int(-self.camera.offset_x * 0.1) % SCREEN_WIDTH
+        near_x = int(-self.camera.offset_x * 0.4) % SCREEN_WIDTH
+        for dx in (-SCREEN_WIDTH, 0, SCREEN_WIDTH):
+            self.screen.blit(self.bg_far,  (far_x  + dx, 0))
+            self.screen.blit(self.bg_near, (near_x + dx, 0))
 
     def _check_vents(self):
         for vent in self.vents:
@@ -293,7 +306,7 @@ class Level1Scene:
         if self.meteor_timer >= METEOR_SPAWN_FRAMES:
             self.meteor_timer = 0
             spawn_x = self.camera.offset_x + random.randint(100, SCREEN_WIDTH - 100)
-            self.meteors.add(EyeMeteor(spawn_x, self.player))
+            self.meteors.add(EyeMeteor(spawn_x))
 
     def _check_meteor_hits(self):
         hits = pygame.sprite.spritecollide(self.player, self.meteors, True)
