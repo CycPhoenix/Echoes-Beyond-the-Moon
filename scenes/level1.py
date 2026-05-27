@@ -159,9 +159,11 @@ class Level1Scene:
         self.screen = screen
         self.state  = state
 
+        pygame.mixer.music.stop()
+
         # Parallax backgrounds
-        self.bg_far  = _load_bg("level1/moonsurface_plain.png")
-        self.bg_near = _load_bg("level1/moonsurface_base.png")
+        self.bg_far  = _load_bg("level1/lv1_background.png")
+        self.bg_near = _load_bg("level1/lv1_background.png")
 
         self.camera    = Camera()
         self.o2        = OxygenSystem()
@@ -262,13 +264,11 @@ class Level1Scene:
                 self.screen.blit(txt, txt.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)))
 
     def _draw_parallax(self):
-        # Far layer — moves at 10% camera speed
-        far_x = -(self.camera.offset_x * 0.1) % SCREEN_WIDTH
-        self.screen.blit(self.bg_far,  (far_x,             0))
-        self.screen.blit(self.bg_far,  (far_x - SCREEN_WIDTH, 0))
-        # Near layer — moves at 40% camera speed
+        far_x  = -(self.camera.offset_x * 0.1) % SCREEN_WIDTH
         near_x = -(self.camera.offset_x * 0.4) % SCREEN_WIDTH
-        self.screen.blit(self.bg_near, (near_x,             0))
+        self.screen.blit(self.bg_far,  (far_x,              0))
+        self.screen.blit(self.bg_far,  (far_x - SCREEN_WIDTH, 0))
+        self.screen.blit(self.bg_near, (near_x,              0))
         self.screen.blit(self.bg_near, (near_x - SCREEN_WIDTH, 0))
 
     def _check_vents(self):
