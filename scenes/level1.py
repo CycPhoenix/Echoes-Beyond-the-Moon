@@ -264,11 +264,13 @@ class Level1Scene:
                 self.screen.blit(txt, txt.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)))
 
     def _draw_parallax(self):
-        far_x  = -(self.camera.offset_x * 0.1) % SCREEN_WIDTH
-        near_x = -(self.camera.offset_x * 0.4) % SCREEN_WIDTH
-        self.screen.blit(self.bg_far,  (far_x,              0))
+        # Far layer — moves at 10% camera speed
+        far_x = -(self.camera.offset_x * 0.1) % SCREEN_WIDTH
+        self.screen.blit(self.bg_far,  (far_x,             0))
         self.screen.blit(self.bg_far,  (far_x - SCREEN_WIDTH, 0))
-        self.screen.blit(self.bg_near, (near_x,              0))
+        # Near layer — moves at 40% camera speed
+        near_x = -(self.camera.offset_x * 0.4) % SCREEN_WIDTH
+        self.screen.blit(self.bg_near, (near_x,             0))
         self.screen.blit(self.bg_near, (near_x - SCREEN_WIDTH, 0))
 
     def _check_vents(self):
