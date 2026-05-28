@@ -5,7 +5,7 @@ import pygame_menu.widgets
 import sys
 
 from utils.constants import (SCREEN_WIDTH, SCREEN_HEIGHT,
-                              SCENE_PROLOGUE, SCENE_LEVEL1, SCENE_LEVEL2)
+                              SCENE_PROLOGUE, SCENE_LEVEL1, SCENE_LEVEL2, SCENE_SETTINGS)
 
 _GLOW_COLOR = (120, 190, 255)   # light blue glow
 
@@ -46,6 +46,7 @@ class MainMenuScene:
         self.menu.add.button('Start Game', self._start)
         self.menu.add.button('Level 1',    self._level1)
         self.menu.add.button('Level 2',    self._level2)
+        self.menu.add.button('Settings',   self._settings)
         self.menu.add.button('Quit',       self._quit)
 
         self.menu.set_relative_position(50, 85)
@@ -83,6 +84,9 @@ class MainMenuScene:
 
     def _level2(self):
         self._next = SCENE_LEVEL2
+
+    def _settings(self):
+        self._next = SCENE_SETTINGS
 
     def _quit(self):
         pygame.quit()

@@ -2,8 +2,10 @@ import os
 import pygame
 from utils.constants import (GRAVITY, JUMP_FORCE, MOVE_SPEED, MAX_FALL_SPEED,
                               MAX_LIVES, SCREEN_HEIGHT)
+import utils.settings_store as store
 
-_BASE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "character", "char_split")
+_BASE      = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "character", "char_split")
+_SFX_BASE  = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "audio", "soundeffects")
 
 _ANIM_FOLDERS = {
     "idle": "luna-idle/images",
@@ -93,6 +95,13 @@ class Player(pygame.sprite.Sprite):
         self.invincible   = 0
         self.state        = "IDLE"
 
+        self._sfx_jump = None
+        try:
+            self._sfx_jump = pygame.mixer.Sound(os.path.join(_SFX_BASE, "jump.wav"))
+            self._sfx_jump.set_volume(0.5)
+        except Exception:
+            pass
+
     def update(self, keys, platforms, o2):
         self._handle_input(keys)
         self._apply_physics()
@@ -103,21 +112,28 @@ class Player(pygame.sprite.Sprite):
             self.invincible -= 1
 
     def _handle_input(self, keys):
+        k_left  = store.get('key_left')
+        k_right = store.get('key_right')
+        k_jump  = store.get('key_jump')
+
         moving = False
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+        if keys[k_left] or keys[pygame.K_a]:
             self.vel.x = -MOVE_SPEED
             self.facing_right = False
             moving = True
-        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+        elif keys[k_right] or keys[pygame.K_d]:
             self.vel.x = MOVE_SPEED
             self.facing_right = True
             moving = True
         else:
             self.vel.x *= 0.75
 
-        if (keys[pygame.K_SPACE] or keys[pygame.K_UP] or keys[pygame.K_w]) and self.on_ground:
+        if (keys[k_jump] or keys[pygame.K_UP] or keys[pygame.K_w]) and self.on_ground:
             self.vel.y = JUMP_FORCE
             self.on_ground = False
+            if self._sfx_jump:
+                self._sfx_jump.stop()
+                self._sfx_jump.play()
 
         if self.on_ground:
             self.state = "WALK" if moving else "IDLE"

@@ -9,7 +9,8 @@ SCENE_PROLOGUE = "prologue"
 SCENE_LEVEL1 = "level1"
 SCENE_LEVEL2 = "level2"
 SCENE_HANDOFF = "handoff"
-SCENE_GAMEOVER = "gameover"
+SCENE_GAMEOVER  = "gameover"
+SCENE_SETTINGS  = "settings"
 
 # Player
 MAX_LIVES = 3

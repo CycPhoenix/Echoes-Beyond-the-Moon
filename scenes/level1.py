@@ -141,10 +141,15 @@ class Level1Scene:
         self.state  = state
 
         pygame.mixer.music.stop()
+        try:
+            pygame.mixer.music.load(os.path.join(_ASSETS, "audio", "backgroundmusic", "lvl1_audio.mp3"))
+            pygame.mixer.music.set_volume(0.4)
+            pygame.mixer.music.play(-1)
+        except Exception:
+            pass
 
-        # Parallax backgrounds
+        # Background
         self.bg_far  = _load_bg("level1/lv1_background.png")
-        self.bg_near = _load_bg("level1/lv1_background.png")
 
         self.camera    = Camera()
         self.o2        = OxygenSystem()
@@ -162,6 +167,20 @@ class Level1Scene:
 
         self.meteor_timer = 0
         self.font         = pygame.font.SysFont(None, 36)
+
+        _sfx = os.path.join(_ASSETS, "audio", "soundeffects")
+        self._sfx_collect = None
+        self._sfx_energy  = None
+        try:
+            self._sfx_collect = pygame.mixer.Sound(os.path.join(_sfx, "collect.wav"))
+            self._sfx_collect.set_volume(0.6)
+        except Exception as e:
+            print(f"[audio] collect sfx failed: {e}")
+        try:
+            self._sfx_energy = pygame.mixer.Sound(os.path.join(_sfx, "energy.mp3"))
+            self._sfx_energy.set_volume(0.6)
+        except Exception as e:
+            print(f"[audio] energy sfx failed: {e}")
         self.death_timer  = 0
         self.next_scene   = None
         self.paused       = False
@@ -232,6 +251,7 @@ class Level1Scene:
         if self._at_airlock():
             self.state.lives = self.player.lives
             self.state.gems  = self.player.gems
+            pygame.mixer.music.stop()
             return SCENE_HANDOFF
 
         return None
@@ -278,13 +298,10 @@ class Level1Scene:
             self.screen.blit(surf, surf.get_rect(center=(cx, cy - 20 + i * 50)))
 
     def _draw_parallax(self):
-        # Integer offset — float modulo causes sub-pixel gap at seam
-        # 3 copies guarantee full coverage at any scroll position
-        far_x  = int(-self.camera.offset_x * 0.1) % SCREEN_WIDTH
-        near_x = int(-self.camera.offset_x * 0.4) % SCREEN_WIDTH
-        for dx in (-SCREEN_WIDTH, 0, SCREEN_WIDTH):
-            self.screen.blit(self.bg_far,  (far_x  + dx, 0))
-            self.screen.blit(self.bg_near, (near_x + dx, 0))
+        # Single layer, very slow scroll — only 1 seam, moves slowly enough to be unnoticeable
+        scroll = int(self.camera.offset_x * 0.05) % SCREEN_WIDTH
+        self.screen.blit(self.bg_far, (-scroll, 0))
+        self.screen.blit(self.bg_far, (-scroll + SCREEN_WIDTH, 0))
 
     def _check_vents(self):
         for vent in self.vents:
@@ -298,8 +315,13 @@ class Level1Scene:
             if item.kind == "gem":
                 self.player.gems += item.value
                 self.particles.spawn_shard_pickup(item.rect.centerx, item.rect.centery)
+                if self._sfx_collect:
+                    self._sfx_collect.play()
             elif item.kind == "o2":
                 self.o2.refill(item.value)
+                if self._sfx_collect:
+                    self._sfx_collect.stop()
+                    self._sfx_collect.play()
 
     def _spawn_meteors(self):
         self.meteor_timer += 1
