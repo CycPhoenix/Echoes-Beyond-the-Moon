@@ -1,6 +1,4 @@
-from utils.constants import (OXYGEN_MAX, OXYGEN_DRAIN_RATE, OXYGEN_DRAIN_RUN,
-                              OXYGEN_DRAIN_JUMP, OXYGEN_WARN)
-
+from utils.constants import (OXYGEN_MAX, OXYGEN_DRAIN_RATE, OXYGEN_DRAIN_RUN, OXYGEN_DRAIN_JUMP, OXYGEN_WARN)
 
 class OxygenSystem:
     def __init__(self):

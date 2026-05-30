@@ -1,6 +1,5 @@
 import pygame
-from utils.constants import (SCREEN_WIDTH, RED, CYAN, WHITE, WARN_COLOR,
-                              OXYGEN_MAX, OXYGEN_WARN)
+from utils.constants import (SCREEN_WIDTH, RED, CYAN, WHITE, WARN_COLOR)
 
 
 class HUD:
