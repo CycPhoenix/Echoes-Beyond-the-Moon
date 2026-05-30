@@ -19,7 +19,6 @@ def _scale_bg(rel: str) -> pygame.Surface:
 
 
 def _scale_bg_blur(rel: str, radius: int = 8) -> pygame.Surface:
-    """Scale background to screen size, apply Gaussian blur (ref: lab9_2 gaussionBlur)."""
     from PIL import Image, ImageFilter
     path = os.path.join(_BASE, rel)
     pil_img = Image.open(path).convert("RGBA")
@@ -29,7 +28,6 @@ def _scale_bg_blur(rel: str, radius: int = 8) -> pygame.Surface:
 
 
 def _scale_dlg(rel: str, target_w: int = 820, max_h: int = 320) -> tuple[pygame.Surface, tuple[int, int]]:
-    """Scale dialogue image to target_w, cap height at max_h, bottom-anchor at screen bottom."""
     src = _load(rel)
     h = int(target_w * src.get_height() / src.get_width())
     if h > max_h:
@@ -43,7 +41,6 @@ def _scale_dlg(rel: str, target_w: int = 820, max_h: int = 320) -> tuple[pygame.
 
 def _make_piano_note(freq: float, sample_rate: int = 44100,
                      duration: float = 0.5, volume: float = 0.28) -> pygame.mixer.Sound:
-    """Synthesise a piano-like note: sine + octave harmonic, ADSR envelope."""
     n = int(sample_rate * duration)
     attack  = int(sample_rate * 0.008)   # 8 ms
     decay   = int(sample_rate * 0.12)    # 120 ms
@@ -133,7 +130,7 @@ _DLG_FILES = [
     _DLG + "new_char_dialogue_judge.png",             # 15 img16
     _DLG + "new_char_dialogue_doubt.png",             # 16 img17
     _DLG + "new_char_dialogue_stareyes.png",          # 17 img18
-    _DLG + "new_char_dialogue_victory.png",            # 18 img19
+    _DLG + "new_char_dialogue_victory.png",           # 18 img19
     _DLG + "new_char_dialogue_frustrated.png",        # 19 img20
     _DLG + "new_char_dialogue_smirking2.png",         # 20 img21
     _DLG + "new_char_dialogue_suspecious.png",        # 21 img22
@@ -141,7 +138,7 @@ _DLG_FILES = [
     _DLG + "new_char_dialogue_pouting.png",           # 23 img24
 ]
 
-# line → _DLG_FILES index  (None = cinematic / piano — no dialogue box)
+# line → _DLG_FILES index 
 _LINE_TO_DLG = [
     0,    # 0  happy_claphand
     13,   # 1  suddenrealization
