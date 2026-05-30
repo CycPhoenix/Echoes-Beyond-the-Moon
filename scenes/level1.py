@@ -309,6 +309,7 @@ class Level1Scene:
                     self._sfx_collect.play()
             elif item.kind == "o2":
                 self.o2.refill(item.value)
+                self.particles.spawn_o2_mist(item.rect.centerx, item.rect.centery)
                 if self._sfx_collect:
                     self._sfx_collect.stop()
                     self._sfx_collect.play()
