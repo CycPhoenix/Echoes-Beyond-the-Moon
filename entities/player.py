@@ -154,14 +154,10 @@ class Player(pygame.sprite.Sprite):
                     self.pos.y = float(self.rect.y)
                     self.vel.y = 0
                     self.on_ground = True
-                    if hasattr(plat, "is_quicksand") and plat.is_quicksand:
-                        o2.level = max(0.0, o2.level - 0.05)
         if self.pos.y > SCREEN_HEIGHT + 100:
             self.die()
 
     def _update_state(self, o2):
-        if o2.is_critical and self.state in ("IDLE", "WALK"):
-            self.state = "PANIC"
         if o2.is_empty:
             self.die()
 
@@ -169,7 +165,7 @@ class Player(pygame.sprite.Sprite):
         if self.state == "DEATH":
             return
 
-        if self.state in ("IDLE", "PANIC"):
+        if self.state == "IDLE":
             key = "IDLE_R" if self.facing_right else "IDLE_L"
         elif self.state == "WALK":
             key = "WALK_R" if self.facing_right else "WALK_L"

@@ -5,7 +5,7 @@ import pygame
 
 from utils.constants import (SCREEN_WIDTH, SCREEN_HEIGHT, BLACK,
                               SCENE_MENU, SCENE_LEVEL1, SCENE_HANDOFF, SCENE_GAMEOVER,
-                              METEOR_SPAWN_FRAMES, OXYGEN_VENT_REFILL,
+                              METEOR_SPAWN_FRAMES,
                               VENDING_GEM_COST, OXYGEN_MAX)
 from utils.game_state import GameState
 from entities.player   import Player
@@ -27,7 +27,7 @@ _GROUND_Y  = 650
 
 def _generate_level():
     rng = random.Random()
-    platforms, gems, o2_tanks, vents, vending = [], [], [], [], []
+    platforms, gems, o2_tanks, vending = [], [], [], []
 
     # Long starting ground
     platforms.append((0, _GROUND_Y, 800, 20, False))
@@ -42,10 +42,9 @@ def _generate_level():
         gap_y = rng.randint(-_MAX_GAP_Y, _MAX_GAP_Y)
         w     = rng.randint(180, 340)
         new_y = max(300, min(_GROUND_Y, y + gap_y))
-        is_qs = rng.random() < 0.10
 
         px = x + gap_x
-        platforms.append((px, new_y, w, 20, is_qs))
+        platforms.append((px, new_y, w, 20, False))
 
         # Gems along platform
         for gx in range(px + 20, px + w - 20, 55):
@@ -55,10 +54,6 @@ def _generate_level():
         # O2 tank every ~4 platforms
         if i % 4 == 2:
             o2_tanks.append((px + w // 2 - 10, new_y - 28))
-
-        # Vent every ~5 platforms
-        if i % 5 == 3:
-            vents.append((px + 8, new_y - 30))
 
         # Vending machine every ~8 platforms
         if i % 8 == 6:
@@ -74,7 +69,7 @@ def _generate_level():
 
     airlock_trigger = base_ground_x + 750
 
-    return platforms, gems, o2_tanks, vents, vending, base_ground_x, base_ground_y, airlock_trigger
+    return platforms, gems, o2_tanks, vending, base_ground_x, base_ground_y, airlock_trigger
 
 
 
@@ -117,12 +112,6 @@ class VendingMachine(pygame.sprite.Sprite):
         self.interaction_rect = self.rect.inflate(40, 0)
 
 
-class OxygenVent(pygame.sprite.Sprite):
-    def __init__(self, x, y):
-        super().__init__()
-        # Invisible — no placeholder rect drawn
-        self.image = pygame.Surface((24, 24), pygame.SRCALPHA)
-        self.rect  = self.image.get_rect(topleft=(x, y))
 
 
 _ASSETS = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
@@ -160,7 +149,6 @@ class Level1Scene:
         self.platforms = pygame.sprite.Group()
         self.meteors   = pygame.sprite.Group()
         self.pickups   = pygame.sprite.Group()
-        self.vents     = pygame.sprite.Group()
         self.vending   = pygame.sprite.Group()
 
         self._build_level()
@@ -188,17 +176,15 @@ class Level1Scene:
         self._pause_small = pygame.font.SysFont(None, 38)
 
     def _build_level(self):
-        plats, gems, o2s, vents, vending, base_x, base_y, airlock_x = _generate_level()
+        plats, gems, o2s, vending, base_x, base_y, airlock_x = _generate_level()
         self.airlock_x = airlock_x
         self.base      = ScienceBase(base_x + 200, base_y)
         for x, y, w, h, qs in plats:
-            self.platforms.add(Platform(x, y, w, h, is_quicksand=qs))
+            self.platforms.add(Platform(x, y, w, h))
         for x, y in gems:
             self.pickups.add(Pickup(x, y, "gem"))
         for x, y in o2s:
             self.pickups.add(Pickup(x, y, "o2"))
-        for x, y in vents:
-            self.vents.add(OxygenVent(x, y))
         for x, y in vending:
             self.vending.add(VendingMachine(x, y))
 
@@ -237,7 +223,6 @@ class Level1Scene:
         self.player.update(keys, self.platforms, self.o2)
         self.o2.update(self.player.state)
 
-        self._check_vents()
         self._check_pickups()
         self._spawn_meteors()
         self.meteors.update(self.platforms)
@@ -259,7 +244,7 @@ class Level1Scene:
     def draw(self):
         self._draw_parallax()
         self.base.draw(self.screen, self.camera)
-        for sprite in list(self.platforms) + list(self.vents) + list(self.vending) + list(self.pickups) + list(self.meteors):
+        for sprite in list(self.platforms) + list(self.vending) + list(self.pickups) + list(self.meteors):
             self.screen.blit(sprite.image, self.camera.apply(sprite))
         self.screen.blit(self.player.image, self.camera.apply(self.player))
         self.particles.draw(self.screen, self.camera)
@@ -302,12 +287,6 @@ class Level1Scene:
         scroll = int(self.camera.offset_x * 0.05) % SCREEN_WIDTH
         self.screen.blit(self.bg_far, (-scroll, 0))
         self.screen.blit(self.bg_far, (-scroll + SCREEN_WIDTH, 0))
-
-    def _check_vents(self):
-        for vent in self.vents:
-            if self.player.rect.colliderect(vent.rect):
-                self.o2.refill(OXYGEN_VENT_REFILL)
-                self.particles.spawn_o2_mist(vent.rect.centerx, vent.rect.top)
 
     def _check_pickups(self):
         hits = pygame.sprite.spritecollide(self.player, self.pickups, True)

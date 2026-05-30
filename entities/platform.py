@@ -32,7 +32,5 @@ def _tile_surface(total_w: int, tile_h: int) -> pygame.Surface:
 class Platform(pygame.sprite.Sprite):
     def __init__(self, x: int, y: int, w: int, h: int, is_quicksand: bool = False):
         super().__init__()
-        self.is_quicksand = is_quicksand
-        # All platforms use rock tiles — quicksand kept for O2 drain logic only
         self.image = _tile_surface(w, _TILE_H)
         self.rect  = self.image.get_rect(topleft=(x, y))
