@@ -7,7 +7,7 @@ import sys
 from utils.constants import (SCREEN_WIDTH, SCREEN_HEIGHT,
                               SCENE_PROLOGUE, SCENE_LEVEL1, SCENE_LEVEL2, SCENE_SETTINGS)
 
-_GLOW_COLOR = (120, 190, 255)   # light blue glow
+_GLOW_COLOR = (120, 190, 255) 
 
 
 class MainMenuScene:
@@ -16,7 +16,7 @@ class MainMenuScene:
         self.state  = state
         self._next  = None
 
-        # ── Background (lab3 technique: load + scale to screen) ──
+        # ── Background ──
         raw = pygame.image.load("assets/menu/mainmenu_final.png")
         self.bg = pygame.transform.scale(raw, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
@@ -32,7 +32,6 @@ class MainMenuScene:
         theme.scrollarea_outer_margin = (0, 0)
         theme.widget_margin           = (0, 10)
         theme.widget_alignment        = pygame_menu.locals.ALIGN_CENTER
-        # Disable built-in flat highlight — we use our own glow instead
         theme.widget_selection_effect = pygame_menu.widgets.NoneSelection()
 
         menu_w, menu_h = 420, 340
@@ -114,7 +113,7 @@ class MainMenuScene:
         self.screen.blit(self.bg, (0, 0))
         self.menu.draw(self.screen)
 
-        # Draw glow on top of the menu, around whichever button is selected
+        # Draw glow on top of the menu
         sel = self.menu.get_selected_widget()
         if sel:
             self._draw_glow(sel.get_rect(to_real_position=True))
