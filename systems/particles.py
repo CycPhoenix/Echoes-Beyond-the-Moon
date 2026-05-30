@@ -3,7 +3,6 @@ import math
 import pygame
 from utils.constants import CYAN
 
-
 class Particle:
     def __init__(self, x, y, vx, vy, color, life, radius):
         self.pos    = pygame.math.Vector2(x, y)

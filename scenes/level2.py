@@ -1,15 +1,15 @@
 class Level2Scene:
     def __init__(self, screen, state):
         self.screen = screen
-        self.state = state
+        self.state  = state
         self.started = False
+        self._result = None
 
     def update(self, dt):
         if not self.started:
             self.started = True
-            print("STARTING LEVEL 2")
-            run_level2(self.state)
-        return None
+            self._result = run_level2(self.state)
+        return self._result
 
     def draw(self):
         pass
@@ -25,6 +25,7 @@ import pygame
 import sys
 import os
 import random
+from utils.constants import SCENE_MENU
 
 def run_level2(state):
     pygame.mixer.init()
@@ -435,6 +436,13 @@ def run_level2(state):
 
 
     running = True
+    moving = False   # initialise before first frame so weapon idle timer never NameErrors
+    paused = False
+    return_scene = None
+
+    # Pause font surfaces (created once, reused every frame)
+    _pause_font_big = pygame.font.SysFont("bahnschrift", 52)
+    _pause_font_sm  = pygame.font.SysFont("bahnschrift", 26)
 
     while running:
 
@@ -512,6 +520,55 @@ def run_level2(state):
                 sys.exit()
 
             if event.type == pygame.KEYDOWN:
+
+                if event.key == pygame.K_ESCAPE:
+                    paused = not paused
+
+                if paused:
+                    if event.key == pygame.K_m:
+                        return_scene = SCENE_MENU
+                        running = False
+                    if event.key == pygame.K_r:
+                        # Full restart — same as retry button
+                        player.x, player.y = 100, 390
+                        player_vel_y = 0
+                        on_ground    = False
+                        player_dead  = False
+                        player_death_timer = 0
+                        luna_die_index = 0
+                        luna_die_timer = 0
+                        luna_die_done  = False
+                        door_stand_timer = 0
+                        camera_x     = 0
+                        has_suit     = False
+                        equipping_suit = False
+                        spawn_delay_timer = 120
+                        alarm_triggered   = False
+                        dialogue_timer    = 0
+                        heartbeat_timer   = 0
+                        screen_flicker    = False
+                        flicker_timer     = 0
+                        shards = state.gems
+                        weapon_bought     = None
+                        weapon_equipped   = False
+                        alien_spawned     = False
+                        weapon_anim_state = "idle"
+                        weapon_active_delay = 0
+                        is_firing         = False
+                        gun_idle_timer    = 0
+                        firing_timer      = 0
+                        bomb_hit_index    = 0
+                        bomb_hit_timer    = 0
+                        explosions.clear()
+                        aliens.clear()
+                        bullets.clear()
+                        vending_state          = "welcome"
+                        vending_dialogue_timer = 0
+                        no_shards_timer = 0
+                        spawn_dialogue_timer   = 300
+                        exit_door_img          = exit_door_closed_img
+                        paused = False
+                    continue  # swallow all other input while paused
 
                 if player_dead:
                     continue  # ignore all input while dead
@@ -595,29 +652,49 @@ def run_level2(state):
                         bomb_hit_timer = firing_timer + 5
                         play_sound(snd_bomb_thrown)
 
+        if paused:
+            # Draw pause overlay on top of current frame then skip game logic
+            ov = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            ov.fill((0, 0, 0, 160))
+            screen.blit(ov, (0, 0))
+            cx, cy = WIDTH // 2, HEIGHT // 2
+            box = pygame.Rect(0, 0, 380, 240)
+            box.center = (cx, cy)
+            pygame.draw.rect(screen, (15, 15, 30), box, border_radius=12)
+            pygame.draw.rect(screen, (0, 200, 180), box, 2, border_radius=12)
+            title = _pause_font_big.render("PAUSED", True, (0, 220, 200))
+            screen.blit(title, title.get_rect(center=(cx, cy - 70)))
+            for i, line in enumerate(["ESC  —  Resume", "R     —  Restart", "M    —  Main Menu"]):
+                surf = _pause_font_sm.render(line, True, (200, 200, 200))
+                screen.blit(surf, surf.get_rect(center=(cx, cy - 10 + i * 40)))
+            pygame.display.update()
+            clock.tick(FPS)
+            continue
+
         # ---------------- PLAYER MOVEMENT ----------------
 
         if not player_dead:
 
             keys = pygame.key.get_pressed()
 
-            if keys[pygame.K_LEFT]:
-                if camera_x > 0:
-                    camera_x -= player_speed
-                player_facing_right = False
+            if not equipping_suit:  # lock movement while suit-up animation plays
+                if keys[pygame.K_LEFT]:
+                    if camera_x > 0:
+                        camera_x -= player_speed
+                    player_facing_right = False
 
-            if keys[pygame.K_RIGHT]:
-                if camera_x < exit_door.x - 200:
-                    camera_x += player_speed
-                else:
-                    # camera has hit its limit — let player walk right on screen toward door
-                    if player.x < WIDTH - 80:
-                        player.x += player_speed
-                player_facing_right = True
+                if keys[pygame.K_RIGHT]:
+                    if camera_x < exit_door.x - 200:
+                        camera_x += player_speed
+                    else:
+                        # camera has hit its limit — let player walk right on screen toward door
+                        if player.x < WIDTH - 80:
+                            player.x += player_speed
+                    player_facing_right = True
 
-            if keys[pygame.K_UP] and on_ground:
-                player_vel_y = -15
-                on_ground = False
+                if keys[pygame.K_UP] and on_ground:
+                    player_vel_y = -15
+                    on_ground = False
 
             player.y += player_vel_y
             player_vel_y += gravity
@@ -699,7 +776,8 @@ def run_level2(state):
 
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
-                            pygame.quit(); sys.exit()
+                            pygame.quit()
+                            sys.exit()
                         if event.type == pygame.MOUSEBUTTONDOWN and hovered:
                             play_sound(snd_button_press)
                             pygame.time.delay(300)  # brief pause so sound is heard
@@ -1096,7 +1174,8 @@ def run_level2(state):
                         clock.tick(FPS)
                         for e in pygame.event.get():
                             if e.type == pygame.QUIT:
-                                pygame.quit(); sys.exit()
+                                pygame.quit()
+                                sys.exit()
 
                 def fade_out():
                     overlay = pygame.Surface((WIDTH, HEIGHT))
@@ -1196,15 +1275,20 @@ def run_level2(state):
                         credits_running = False
                     for e in pygame.event.get():
                         if e.type == pygame.QUIT:
-                            pygame.quit(); sys.exit()
+                            pygame.quit()
+                            sys.exit()
                         if e.type == pygame.KEYDOWN:
                             credits_running = False
                     pygame.display.update()
 
                 
                 state.gems = shards
+                return_scene = SCENE_MENU
                 running = False
 
         pygame.display.update()
 
-    pygame.quit()
+    pygame.mixer.music.stop()
+    # Restore main game resolution after level 2's custom window size
+    pygame.display.set_mode((1280, 720))
+    return return_scene
