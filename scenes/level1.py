@@ -159,6 +159,8 @@ class Level1Scene:
         _sfx = os.path.join(_ASSETS, "audio", "soundeffects")
         self._sfx_collect = None
         self._sfx_energy  = None
+        self._sfx_door    = None
+        self._door_played = False
         try:
             self._sfx_collect = pygame.mixer.Sound(os.path.join(_sfx, "collect.wav"))
             self._sfx_collect.set_volume(0.6)
@@ -169,6 +171,11 @@ class Level1Scene:
             self._sfx_energy.set_volume(0.6)
         except Exception as e:
             print(f"[audio] energy sfx failed: {e}")
+        try:
+            self._sfx_door = pygame.mixer.Sound(os.path.join(_sfx, "door_unlock.mp3"))
+            self._sfx_door.set_volume(0.8)
+        except Exception as e:
+            print(f"[audio] door_unlock sfx failed: {e}")
         self.death_timer  = 0
         self.next_scene   = None
         self.paused       = False
@@ -234,6 +241,10 @@ class Level1Scene:
         self.base.update()
 
         if self._at_airlock():
+            if not self._door_played:
+                self._door_played = True
+                if self._sfx_door:
+                    self._sfx_door.play()
             self.state.lives = self.player.lives
             self.state.gems  = self.player.gems
             pygame.mixer.music.stop()

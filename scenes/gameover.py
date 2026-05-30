@@ -1,6 +1,9 @@
+import os
 import pygame
 from utils.constants import SCENE_LEVEL1, SCENE_MENU, SCREEN_WIDTH, SCREEN_HEIGHT
 from utils.game_state import GameState
+
+_ASSETS = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
 
 
 class GameOverScene:
@@ -9,6 +12,14 @@ class GameOverScene:
         self.state      = state
         self.font_big   = pygame.font.SysFont(None, 80)
         self.font_small = pygame.font.SysFont(None, 40)
+
+        pygame.mixer.music.stop()
+        try:
+            pygame.mixer.music.load(os.path.join(_ASSETS, "audio", "backgroundmusic", "gameover.mp3"))
+            pygame.mixer.music.set_volume(0.6)
+            pygame.mixer.music.play(-1)
+        except Exception as e:
+            print(f"[audio] gameover music failed: {e}")
 
     def update(self, dt):
         for event in pygame.event.get():
