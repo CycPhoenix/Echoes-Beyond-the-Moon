@@ -1,8 +1,8 @@
 {
-  "music_vol": 0.0,
-  "sfx_vol": 0.0,
+  "music_vol": 0.4133333333333332,
+  "sfx_vol": 0.64,
   "fullscreen": false,
-  "key_left": 1073741904,
-  "key_right": 1073741903,
+  "key_left": 97,
+  "key_right": 100,
   "key_jump": 32
 }
