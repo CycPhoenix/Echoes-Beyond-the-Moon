@@ -5,8 +5,7 @@ import pygame
 
 from utils.constants import (SCREEN_WIDTH, SCREEN_HEIGHT, BLACK,
                               SCENE_MENU, SCENE_LEVEL1, SCENE_HANDOFF, SCENE_GAMEOVER,
-                              METEOR_SPAWN_FRAMES,
-                              VENDING_GEM_COST, OXYGEN_MAX)
+                              METEOR_SPAWN_FRAMES)
 from utils.game_state import GameState
 from entities.player   import Player
 from entities.meteor   import EyeMeteor
@@ -27,7 +26,7 @@ _GROUND_Y  = 650
 
 def _generate_level():
     rng = random.Random()
-    platforms, gems, o2_tanks, vending = [], [], [], []
+    platforms, gems, o2_tanks = [], [], []
 
     # Long starting ground
     platforms.append((0, _GROUND_Y, 800, 20, False))
@@ -55,10 +54,6 @@ def _generate_level():
         if i % 4 == 2:
             o2_tanks.append((px + w // 2 - 10, new_y - 28))
 
-        # Vending machine every ~8 platforms
-        if i % 8 == 6:
-            vending.append((px + w // 2 - 16, new_y - 52))
-
         x = px + w
         y = new_y
 
@@ -69,7 +64,7 @@ def _generate_level():
 
     airlock_trigger = base_ground_x + 750
 
-    return platforms, gems, o2_tanks, vending, base_ground_x, base_ground_y, airlock_trigger
+    return platforms, gems, o2_tanks, base_ground_x, base_ground_y, airlock_trigger
 
 
 
@@ -101,16 +96,6 @@ class ScienceBase:
         gx = self.x - camera.offset_x
         gy = self.ground_y - _BASE_IMG_H   # bottom of image sits on ground
         screen.blit(self.image, (gx, gy))
-
-
-class VendingMachine(pygame.sprite.Sprite):
-    def __init__(self, x, y):
-        super().__init__()
-        # Invisible — no placeholder rect drawn
-        self.image = pygame.Surface((32, 48), pygame.SRCALPHA)
-        self.rect  = self.image.get_rect(topleft=(x, y))
-        self.interaction_rect = self.rect.inflate(40, 0)
-
 
 
 
@@ -149,7 +134,6 @@ class Level1Scene:
         self.platforms = pygame.sprite.Group()
         self.meteors   = pygame.sprite.Group()
         self.pickups   = pygame.sprite.Group()
-        self.vending   = pygame.sprite.Group()
 
         self._build_level()
 
@@ -183,7 +167,7 @@ class Level1Scene:
         self._pause_small = pygame.font.SysFont(None, 38)
 
     def _build_level(self):
-        plats, gems, o2s, vending, base_x, base_y, airlock_x = _generate_level()
+        plats, gems, o2s, base_x, base_y, airlock_x = _generate_level()
         self.airlock_x = airlock_x
         self.base      = ScienceBase(base_x + 200, base_y)
         for x, y, w, h, qs in plats:
@@ -192,8 +176,6 @@ class Level1Scene:
             self.pickups.add(Pickup(x, y, "gem"))
         for x, y in o2s:
             self.pickups.add(Pickup(x, y, "o2"))
-        for x, y in vending:
-            self.vending.add(VendingMachine(x, y))
 
     def update(self, dt) -> str | None:
         if self.next_scene:
@@ -211,9 +193,6 @@ class Level1Scene:
                         return SCENE_LEVEL1
                     if event.key == pygame.K_m:
                         return SCENE_MENU
-                else:
-                    if event.key == pygame.K_e:
-                        self._try_vend()
 
         if self.paused:
             return None
@@ -255,7 +234,7 @@ class Level1Scene:
     def draw(self):
         self._draw_parallax()
         self.base.draw(self.screen, self.camera)
-        for sprite in list(self.platforms) + list(self.vending) + list(self.pickups) + list(self.meteors):
+        for sprite in list(self.platforms) + list(self.pickups) + list(self.meteors):
             self.screen.blit(sprite.image, self.camera.apply(sprite))
         self.screen.blit(self.player.image, self.camera.apply(self.player))
         self.particles.draw(self.screen, self.camera)
@@ -326,13 +305,6 @@ class Level1Scene:
         for _ in hits:
             self.player.take_damage()
             self.particles.spawn_explosion(self.player.pos)
-
-    def _try_vend(self):
-        for vm in self.vending:
-            if self.player.rect.colliderect(vm.interaction_rect):
-                if self.player.gems >= VENDING_GEM_COST:
-                    self.player.gems -= VENDING_GEM_COST
-                    self.o2.refill(float(OXYGEN_MAX))
 
     def _at_airlock(self) -> bool:
         return self.player.rect.colliderect(self.base.door_rect)
